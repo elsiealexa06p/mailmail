@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %} — Domains{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Domain Manager</h1>
+    <div class="btn-group">
+        <button class="btn btn-secondary btn-sm"
+                hx-post="/domains/balance"
+                hx-target="#dynadot-balance"
+                hx-swap="innerHTML"
+                hx-include="#dynadot-account-select">Check Balance</button>
+        <span id="dynadot-balance" style="margin-left:8px"></span>
+    </div>
+</div>
+
+<div class="card tab-wrap">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('domain-tabs', 'tab-search')">Search & Buy</button>
+        <button class="tab-btn" onclick="showTab('domain-tabs', 'tab-purchased')">Purchased <span class="count">{{ purchased|length }}</span></button>
+        <button class="tab-btn" onclick="showTab('domain-tabs', 'tab-remote')">Dynadot Account</button>
+        <button class="tab-btn" onclick="showTab('domain-tabs', 'tab-config')">Settings</button>
+    </div>
+
+    <div id="domain-tabs">
+        <!-- Search & Buy -->
+        <div id="tab-search" class="tab-content active">
+            {% if not config.api_key and not dynadot_accounts %}
+            <div class="alert alert-warning">
+                Add a Dynadot account in the Settings tab first.
+            </div>
+            {% endif %}
+
+            <div class="grid-2" style="align-items:start">
+                <form hx-post="/domains/search"
+                      hx-target="#search-results"
+                      hx-swap="innerHTML"
+                      hx-include="#dynadot-account-select">
+                    <label>Search Domains (one per line or comma-separated)</label>
+                    <textarea name="query" rows="5" placeholder="beispiel.de&#10;meinshop.com&#10;newsletter-xyz.de" style="font-family:monospace;font-size:13px"></textarea>
+                    <div style="margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                        <button class="btn btn-primary">Search Availability</button>
+                        <label style="display:flex;align-items:center;gap:4px;font-weight:400;margin:0;cursor:pointer">
+                            <input type="checkbox" name="debug" value="1" style="margin:0;width:auto">
+                            <span style="font-size:12px;color:var(--fg2)">Debug (show raw Dynadot response)</span>
+                        </label>
+                    </div>
+                </form>
+                <div>
+                    <label>Dynadot Account</label>
+                    <select id="dynadot-account-select" name="dynadot_account_id">
+                        {% if dynadot_accounts %}
+                        {% for a in dynadot_accounts %}
+                        <option value="{{ a.id }}" {{ 'selected' if a.is_primary }}>{{ a.name }}{{ ' (Primary)' if a.is_primary }}</option>
+                        {% endfor %}
+                        {% endif %}
+                        {% if config.api_key %}
+                        <option value="0">Legacy (Settings key)</option>
+                        {% endif %}
+                    </select>
+                    <label style="margin-top:8px">Cloudflare Account</label>
+                    <select id="cf-account-select" name="cf_account_id">
+                        {% if cf_accounts %}
+                        {% for a in cf_accounts %}
+                        <option value="{{ a.id }}">{{ a.name }}</option>
+                        {% endfor %}
+                        {% else %}
+                        <option value="0">No CF accounts</option>
+                        {% endif %}
+                    </select>
+                    <div class="form-help">CF zone created after purchase. Dynadot account used for search/buy.</div>
+                </div>
+            </div>
+
+            <div id="search-results" style="margin-top:16px"></div>
+            <div id="buy-result" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Purchased Domains -->
+        <div id="tab-purchased" class="tab-content">
+            {% if purchased %}
+            <table>
+                <thead>
+                    <tr><th>Domain</th><th>CF Zone</th><th>Nameservers</th><th>NS Set</th><th>Status</th><th>Purchased</th><th></th></tr>
+                </thead>
+                <tbody>
+                {% for d in purchased %}
+                <tr>
+                    <td style="font-weight:500">{{ d.domain }}</td>
+                    <td style="font-size:12px;color:var(--fg2)">{{ d.cf_zone_id[:12] ~ '...' if d.cf_zone_id else '—' }}</td>
+                    <td style="font-size:11px">
+                        {% if d.cf_ns1 %}{{ d.cf_ns1 }}<br>{{ d.cf_ns2 }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if d.ns_set %}
+                        <span class="badge badge-running">Set</span>
+                        {% else %}
+                        <span class="badge badge-draft">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge badge-info">{{ d.status }}</span></td>
+                    <td style="font-size:12px;color:var(--fg2)">{{ d.purchased_at }}</td>
+                    <td>
+                        {% if not d.ns_set and d.cf_ns1 %}
+                        <button class="btn btn-secondary btn-xs"
+                                hx-post="/domains/{{ d.id }}/set-ns"
+                                hx-target="closest td"
+                                hx-swap="innerHTML">Retry NS</button>
+                        {% endif %}
+                        <button class="btn btn-secondary btn-xs"
+                                hx-post="/domains/{{ d.id }}/transfer-cf"
+                                hx-target="#transfer-result-{{ d.id }}"
+                                hx-swap="innerHTML"
+                                hx-include="#cf-account-select"
+                                hx-confirm="Transfer {{ d.domain }} to selected CF account?">Transfer CF</button>
+                        <div id="transfer-result-{{ d.id }}" style="margin-top:4px"></div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <div class="icon">&#127760;</div>
+                <p>No domains purchased yet. Use Search & Buy to get started.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Remote Domain List -->
+        <div id="tab-remote" class="tab-content">
+            <p style="margin-bottom:12px;color:var(--fg2);font-size:13px">
+                Fetch all domains from your Dynadot account.
+            </p>
+            <button class="btn btn-primary btn-sm"
+                    hx-post="/domains/list-remote"
+                    hx-target="#remote-domains"
+                    hx-swap="innerHTML"
+                    hx-include="#dynadot-account-select">Load Domain List</button>
+            <div id="remote-domains" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Settings -->
+        <div id="tab-config" class="tab-content">
+            <h3 style="font-size:14px;margin-bottom:12px">Dynadot Accounts</h3>
+            {% if dynadot_accounts %}
+            <table style="margin-bottom:16px">
+                <thead><tr><th>Name</th><th>API Key</th><th>Secret</th><th>USD</th><th>Primary</th><th></th></tr></thead>
+                <tbody>
+                {% for a in dynadot_accounts %}
+                <tr>
+                    <td style="font-weight:500">{{ a.name }}</td>
+                    <td style="font-family:monospace;font-size:12px">{{ a.api_key[:8] }}...{{ a.api_key[-4:] }}</td>
+                    <td style="font-family:monospace;font-size:11px">
+                        {% if a.secret %}{{ a.secret[:6] }}...{{ a.secret[-4:] }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if a.send_currency %}<span class="badge badge-running">USD</span>{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if a.is_primary %}
+                        <span class="badge badge-running">Primary</span>
+                        {% else %}
+                        <form method="post" action="/domains/dynadot/{{ a.id }}/set-primary" style="display:inline">
+                            <button class="btn btn-secondary btn-xs">Set Primary</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                    <td style="white-space:nowrap">
+                        <details style="display:inline-block;vertical-align:middle">
+                            <summary class="btn btn-secondary btn-xs" style="display:inline-block">Edit</summary>
+                            <form method="post" action="/domains/dynadot/{{ a.id }}/update" style="margin-top:6px;padding:8px;border:1px solid var(--border-light);border-radius:var(--radius);min-width:280px">
+                                <label style="font-size:11px">Secret</label>
+                                <input name="secret" type="password" value="{{ a.secret or '' }}" placeholder="(optional)" style="margin-bottom:6px">
+                                <label style="display:flex;align-items:center;gap:4px;font-weight:400;cursor:pointer;margin-bottom:6px">
+                                    <input type="checkbox" name="send_currency" value="1" {{ 'checked' if a.send_currency }} style="margin:0;width:auto">
+                                    <span style="font-size:11px">Send <code>currency=USD</code> with register (workaround)</span>
+                                </label>
+                                <button class="btn btn-primary btn-xs">Save</button>
+                            </form>
+                        </details>
+                        <form method="post" action="/domains/dynadot/{{ a.id }}/delete" onsubmit="return confirm('Delete?')" style="display:inline">
+                            <button class="btn btn-danger btn-xs">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <form method="post" action="/domains/add-dynadot-account" style="max-width:500px">
+                <div class="grid-2">
+                    <div>
+                        <label>Account Name</label>
+                        <input name="name" placeholder="Main Account" required>
+                    </div>
+                    <div>
+                        <label>API Key</label>
+                        <input name="api_key" type="password" placeholder="Dynadot API key" required>
+                    </div>
+                </div>
+                <div style="margin-top:8px">
+                    <label>API Secret (optional)</label>
+                    <input name="secret" type="password" placeholder="Only if your Dynadot account exposes a separate secret">
+                </div>
+                <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:8px">
+                    <input type="checkbox" name="send_currency" value="1" style="margin:0;width:auto">
+                    <span style="font-size:12px">Send <code>currency=USD</code> with register (workaround for <code>insufficient_funds</code> on accounts where balance shows but register refuses)</span>
+                </label>
+                <div style="margin-top:10px">
+                    <button class="btn btn-primary btn-sm">Add Account</button>
+                </div>
+            </form>
+
+            {% if config.api_key %}
+            <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:12px">
+                <h3 style="font-size:14px;margin-bottom:8px">Legacy Config</h3>
+                <form method="post" action="/domains/config" style="max-width:500px">
+                    <label>API Key</label>
+                    <input name="api_key" type="password" value="{{ config.api_key or '' }}">
+                    <input type="hidden" name="secret" value="{{ config.secret or '' }}">
+                    <div style="margin-top:8px"><button class="btn btn-secondary btn-sm">Update</button></div>
+                </form>
+            </div>
+            {% endif %}
+
+            {% if not cf_accounts %}
+            <div class="alert alert-warning" style="margin-top:16px">
+                No Cloudflare account configured.
+                <a href="/cloudflare" style="color:var(--accent);font-weight:500">Configure Cloudflare</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

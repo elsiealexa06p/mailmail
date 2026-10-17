@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactional Mailer — Setup</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body { display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg) }
+        .setup-card { background:var(--bg2);border:1px solid var(--border-light);border-radius:12px;padding:40px;width:100%;max-width:440px;box-shadow:var(--shadow-md) }
+        .setup-card h1 { font-size:24px;margin-bottom:6px;text-align:center }
+        .setup-card .subtitle { color:var(--fg2);font-size:13px;text-align:center;margin-bottom:28px }
+        .setup-card .error { background:var(--red-light);color:var(--red);padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:16px }
+    </style>
+</head>
+<body>
+    <div class="setup-card">
+        <h1>Welcome</h1>
+        <p class="subtitle">Create your admin account</p>
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <form method="post" action="/setup">
+            <label>Username</label><input name="username" required autofocus>
+            <label>Display Name</label><input name="display_name" placeholder="Admin">
+            <label>Password</label><input name="password" type="password" required placeholder="Min 6 chars">
+            <label>Confirm Password</label><input name="password2" type="password" required>
+            <div style="margin-top:20px"><button class="btn btn-primary" style="width:100%;padding:12px">Create Account</button></div>
+        </form>
+    </div>
+</body>
+</html>

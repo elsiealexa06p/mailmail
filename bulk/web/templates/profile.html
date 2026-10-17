@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %} — Profile{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Profile</h1>
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <!-- Profile Settings -->
+    <div class="card">
+        <h3>Profile Settings</h3>
+        <form method="post" action="/profile/update">
+            <label>Username</label>
+            <input value="{{ user.username }}" disabled style="background:var(--bg3);color:var(--fg2)">
+            <div class="form-help">Username cannot be changed</div>
+
+            <label>Display Name</label>
+            <input name="display_name" value="{{ user.display_name or '' }}" placeholder="Your name">
+            <div class="form-help">Shown in the sidebar</div>
+
+            <div style="margin-top:16px">
+                <button class="btn btn-primary">Save Profile</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Logo Upload -->
+    <div class="card">
+        <h3>Sidebar Logo</h3>
+        {% if user.logo_path %}
+        <div style="margin-bottom:12px;padding:16px;background:var(--bg);border-radius:var(--radius);text-align:center">
+            <img src="{{ user.logo_path }}" alt="Logo"
+                 style="max-width:160px;max-height:80px;object-fit:contain">
+        </div>
+        <form method="post" action="/profile/logo/delete" style="margin-bottom:12px">
+            <button class="btn btn-danger btn-sm">Remove Logo</button>
+        </form>
+        {% else %}
+        <div style="margin-bottom:16px;padding:20px;background:var(--bg);border-radius:var(--radius);text-align:center;color:var(--fg2);font-size:13px">
+            No logo uploaded. Default text shown.
+        </div>
+        {% endif %}
+
+        <form method="post" action="/profile/logo" enctype="multipart/form-data">
+            <label>Upload Logo</label>
+            <input type="file" name="logo" accept=".png,.jpg,.jpeg,.svg,.webp,.gif" required>
+            <div class="form-help">Max 2 MB. PNG, JPG, SVG, WebP, GIF. Displayed at max 140px wide.</div>
+
+            <div style="margin-top:12px">
+                <button class="btn btn-primary btn-sm">Upload Logo</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Change Password -->
+<div class="card" style="max-width:500px">
+    <h3>Change Password</h3>
+
+    {% if pw_error %}
+    <div class="alert alert-danger">{{ pw_error }}</div>
+    {% endif %}
+    {% if pw_success %}
+    <div class="alert alert-success">{{ pw_success }}</div>
+    {% endif %}
+
+    <form method="post" action="/profile/password">
+        <label>Current Password</label>
+        <input name="current_password" type="password" required>
+
+        <label>New Password</label>
+        <input name="new_password" type="password" required placeholder="Min. 6 characters">
+
+        <label>Confirm New Password</label>
+        <input name="new_password2" type="password" required>
+
+        <div style="margin-top:16px">
+            <button class="btn btn-danger">Change Password</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %} — Admin{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Admin Panel</h1></div>
+
+<div class="card tab-wrap">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('admin-tabs', 'tab-users')">Users</button>
+        <button class="tab-btn" onclick="showTab('admin-tabs', 'tab-app')">App Settings</button>
+        <button class="tab-btn" onclick="showTab('admin-tabs', 'tab-backup')">Backup</button>
+    </div>
+    <div id="admin-tabs">
+        <!-- Users -->
+        <div id="tab-users" class="tab-content active">
+            <div class="card-header"><h3>Users <span class="count">{{ users|length }}</span></h3></div>
+            {% for u in users %}
+            <details>
+                <summary>
+                    <strong>{{ u.username }}</strong>
+                    <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+                        <span class="badge badge-{{ 'running' if u.role == 'admin' else 'info' }}">{{ u.role }}</span>
+                        {% if not u.is_active %}<span class="badge badge-failed">Disabled</span>{% endif %}
+                    </span>
+                </summary>
+                <div class="details-body" style="padding-top:12px">
+                    <form method="post" action="/admin/user/{{ u.id }}/permissions">
+                        <label>Role</label>
+                        <select name="role">
+                            <option value="user" {{ 'selected' if u.role == 'user' }}>User</option>
+                            <option value="admin" {{ 'selected' if u.role == 'admin' }}>Admin (all features, no user mgmt)</option>
+                        </select>
+                        <label style="margin-top:12px;font-weight:600">Permissions</label>
+                        <div class="grid-3" style="margin-top:6px">
+                        {% for feat, label in features %}
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                                <input type="checkbox" name="{{ feat }}" {{ 'checked' if u.perms.get(feat) or u.role == 'admin' }} style="width:auto">
+                                {{ label }}
+                            </label>
+                        {% endfor %}
+                        </div>
+                        <div style="margin-top:12px" class="btn-group">
+                            <button class="btn btn-primary btn-sm">Save Permissions</button>
+                            <form method="post" action="/admin/user/{{ u.id }}/toggle">
+                                <button class="btn btn-{{ 'danger' if u.is_active else 'success' }} btn-sm">
+                                    {{ 'Disable' if u.is_active else 'Enable' }}
+                                </button>
+                            </form>
+                            <form method="post" action="/admin/user/{{ u.id }}/delete" onsubmit="return confirm('Delete user?')">
+                                <button class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                        </div>
+                    </form>
+                    <div class="divider"></div>
+                    <form method="post" action="/admin/user/{{ u.id }}/reset-password" class="form-row">
+                        <div><input name="new_password" type="password" placeholder="New password (min 6)" style="margin:0"></div>
+                        <div class="shrink"><button class="btn btn-secondary btn-sm">Reset Password</button></div>
+                    </form>
+                </div>
+            </details>
+            {% endfor %}
+
+            <details style="margin-top:16px">
+                <summary>Add User</summary>
+                <div class="details-body" style="padding-top:12px">
+                    <form method="post" action="/admin/add-user">
+                        <div class="grid-2">
+                            <div>
+                                <label>Username</label><input name="username" required>
+                                <label>Password (min 6)</label><input name="password" type="password" required>
+                            </div>
+                            <div>
+                                <label>Display Name</label><input name="display_name">
+                                <label>Role</label>
+                                <select name="role">
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px"><button class="btn btn-primary">Create User</button></div>
+                    </form>
+                </div>
+            </details>
+        </div>
+
+        <!-- App Settings -->
+        <div id="tab-app" class="tab-content">
+            <form method="post" action="/admin/app-config" enctype="multipart/form-data" style="max-width:500px">
+                <label>App Name (shown in sidebar)</label>
+                <input name="app_name" value="{{ app_cfg.app_name or 'Transactional Mailer' }}">
+                <label>Login Page Logo</label>
+                {% if app_cfg.login_logo %}
+                <div style="margin-bottom:8px"><img src="{{ app_cfg.login_logo }}" style="max-width:200px;max-height:60px"></div>
+                {% endif %}
+                <input type="file" name="login_logo" accept=".png,.jpg,.jpeg,.svg,.webp">
+                <div class="form-help">Max 2MB. Shown on the login page for all users.</div>
+                <div style="margin-top:12px"><button class="btn btn-primary">Save</button></div>
+            </form>
+        </div>
+
+        <!-- Backup -->
+        <div id="tab-backup" class="tab-content">
+            <div class="grid-2" style="align-items:start">
+                <div>
+                    <h3 style="font-size:14px">Create Backup</h3>
+                    <p style="font-size:13px;color:var(--fg2);margin-bottom:12px">
+                        Exports: Config, SMTP Lists + accounts, Lead Lists (metadata), Macros, Templates + HTML files, Logos (metadata), Redirects, Proxies, Campaigns.
+                    </p>
+                    <a href="/admin/backup" class="btn btn-primary">Download Backup (.json)</a>
+                </div>
+                <div>
+                    <h3 style="font-size:14px">Restore Backup</h3>
+                    <form hx-post="/admin/restore" hx-target="#restore-result" hx-swap="innerHTML" hx-encoding="multipart/form-data">
+                        <label>Upload backup .json</label>
+                        <input type="file" name="file" accept=".json" required>
+                        <div style="margin-top:10px"><button class="btn btn-primary btn-sm">Restore</button></div>
+                    </form>
+                    <div id="restore-result" style="margin-top:10px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

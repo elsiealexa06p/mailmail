@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %} — Inbox Test{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Inbox Test</h1></div>
+
+<div class="card tab-wrap">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('ibt-tabs','tab-run')">Run Test</button>
+        <button class="tab-btn" onclick="showTab('ibt-tabs','tab-accounts')">Accounts <span class="count">{{ accounts|length }}</span></button>
+        <button class="tab-btn" onclick="showTab('ibt-tabs','tab-results')">Results <span class="count">{{ tests|length }}</span></button>
+        <button class="tab-btn" onclick="showTab('ibt-tabs','tab-compare')">Compare</button>
+    </div>
+    <div id="ibt-tabs">
+
+        <!-- Run Test -->
+        <div id="tab-run" class="tab-content active">
+            {% if not accounts %}
+            <div class="alert alert-warning">Add test accounts in the Accounts tab first.</div>
+            {% endif %}
+            <form>
+                <div class="grid-2">
+                    <div>
+                        <label>Test Name</label>
+                        <input name="test_name" placeholder="z.B. Test #1 Default Settings">
+                        <label>SMTP List</label>
+                        <select name="smtp_list_id">
+                            {% for sl in smtp_lists %}<option value="{{ sl.id }}">{{ sl.name }}</option>{% endfor %}
+                        </select>
+                        <label>Template</label>
+                        <select name="template_id">
+                            <option value="0">All Templates</option>
+                            {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>MIME Profile</label>
+                        <select name="mime_profile">
+                            <option value="rotate">Rotate (all profiles)</option>
+                            <option value="default">Default</option>
+                            <option value="outlook_desktop">Outlook Desktop</option>
+                            <option value="apple_mail_mac">Apple Mail Mac</option>
+                            <option value="apple_mail_iphone">iPhone Mail</option>
+                            <option value="thunderbird">Thunderbird</option>
+                        </select>
+                        <label>Subject (override)</label>
+                        <input name="subject" placeholder="Leave empty = config default">
+                        <label>From Name (override)</label>
+                        <input name="from_name" placeholder="Leave empty = config default">
+                    </div>
+                </div>
+                <div style="margin-top:12px">
+                    <button type="button" class="btn btn-primary"
+                            hx-post="/inboxtest/run"
+                            hx-target="#run-result"
+                            hx-swap="innerHTML"
+                            hx-include="closest form">Start Inbox Test ({{ accounts|length }} accounts)</button>
+                </div>
+            </form>
+            <div id="run-result" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Accounts -->
+        <div id="tab-accounts" class="tab-content">
+            {% if accounts %}
+            <table style="margin-bottom:16px">
+                <thead><tr><th>Provider</th><th>Email</th><th>IMAP Host</th><th>Proxy</th><th></th></tr></thead>
+                <tbody>
+                {% for a in accounts %}
+                <tr>
+                    <td style="font-weight:500">{{ a.provider or '—' }}</td>
+                    <td style="font-family:monospace;font-size:12px">{{ a.email }}</td>
+                    <td style="font-size:12px">{{ a.imap_host }}:{{ a.imap_port }}</td>
+                    <td style="font-size:11px;color:var(--fg2)">{{ a.proxy[:20] ~ '...' if a.proxy and a.proxy|length > 20 else a.proxy or '—' }}</td>
+                    <td>
+                        <form method="post" action="/inboxtest/account/{{ a.id }}/delete" onsubmit="return confirm('Delete?')" style="display:inline">
+                            <button class="btn btn-danger btn-xs">Del</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <details {{ 'open' if not accounts }}>
+                <summary>Add Test Account</summary>
+                <div class="details-body" style="padding-top:12px">
+                    <form method="post" action="/inboxtest/add-account">
+                        <div class="grid-2">
+                            <div>
+                                <label>Provider</label>
+                                <input name="provider" placeholder="z.B. Strato, T-Online, GMX, Gmail">
+                                <label>Email</label>
+                                <input name="account_email" placeholder="test@strato.de" required>
+                                <label>IMAP Host</label>
+                                <input name="imap_host" placeholder="imap.strato.de" required>
+                                <label>IMAP Port</label>
+                                <input name="imap_port" type="number" value="993">
+                            </div>
+                            <div>
+                                <label>Username (if different from email)</label>
+                                <input name="username" placeholder="Leave empty = same as email">
+                                <label>Password</label>
+                                <input name="password" type="password" required>
+                                <label>IMAP Proxy (SOCKS5, separate from sending)</label>
+                                <input name="proxy" placeholder="host:port or host:port:user:pass">
+                                <div class="form-help">Leave empty = direct connection</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px"><button class="btn btn-primary">Add Account</button></div>
+                    </form>
+                </div>
+            </details>
+        </div>
+
+        <!-- Results -->
+        <div id="tab-results" class="tab-content">
+            {% if tests %}
+            {% for t in tests %}
+            <details {{ 'open' if loop.first }}>
+                <summary>
+                    {{ t.name or 'Test #' ~ t.id }}
+                    <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+                        <span class="badge badge-running">{{ t.inbox }} inbox</span>
+                        <span class="badge badge-failed">{{ t.spam }} spam</span>
+                        {% if t.missing %}<span class="badge badge-draft">{{ t.missing }} missing</span>{% endif %}
+                        <span style="font-size:11px;color:var(--fg2)">{{ t.created_at }}</span>
+                    </span>
+                </summary>
+                <div class="details-body" style="padding-top:12px">
+                    <div style="margin-bottom:12px;display:flex;gap:8px">
+                        <form method="post" action="/inboxtest/{{ t.id }}/check-imap" style="display:inline">
+                            <button class="btn btn-secondary btn-sm"
+                                    hx-post="/inboxtest/{{ t.id }}/check-imap"
+                                    hx-target="#recheck-{{ t.id }}"
+                                    hx-swap="innerHTML">Re-Check IMAP</button>
+                        </form>
+                        <form method="post" action="/inboxtest/{{ t.id }}/delete" onsubmit="return confirm('Delete test + results?')" style="display:inline">
+                            <button class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </div>
+                    <div id="recheck-{{ t.id }}"></div>
+                    <table>
+                        <thead><tr><th>Provider</th><th>Email</th><th>SMTP</th><th>MIME</th><th>Result</th><th>Folder</th></tr></thead>
+                        <tbody>
+                        {% for r in t.results %}
+                        <tr>
+                            <td>{{ r.provider }}</td>
+                            <td style="font-family:monospace;font-size:12px">{{ r.account_email }}</td>
+                            <td style="font-family:monospace;font-size:11px">{{ r.smtp_user[:25] }}</td>
+                            <td style="font-size:11px">{{ r.mime_profile }}</td>
+                            <td>
+                                {% if r.result == 'INBOX' %}<span class="badge badge-running">INBOX</span>
+                                {% elif r.result == 'SPAM' %}<span class="badge badge-failed">SPAM</span>
+                                {% elif r.result == 'ERROR' %}<span class="badge badge-failed" title="{{ r.error_message }}">ERROR</span>
+                                {% elif r.result == 'MISSING' %}<span class="badge badge-draft">MISSING</span>
+                                {% else %}<span class="badge badge-draft">{{ r.result }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:11px;color:var(--fg2)">{{ r.folder_found or r.error_message[:30] or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+            {% endfor %}
+            {% else %}
+            <div class="empty-state"><p>No tests yet. Run one from the Run Test tab.</p></div>
+            {% endif %}
+        </div>
+
+        <!-- Compare -->
+        <div id="tab-compare" class="tab-content">
+            {% if tests|length >= 2 %}
+            <form hx-post="/inboxtest/compare" hx-target="#compare-result" hx-swap="innerHTML">
+                <div class="grid-2">
+                    <div>
+                        <label>Test A (before)</label>
+                        <select name="test_a">
+                            {% for t in tests %}
+                            <option value="{{ t.id }}">{{ t.name }} — {{ t.inbox }}/{{ t.total }} inbox ({{ t.created_at }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Test B (after)</label>
+                        <select name="test_b">
+                            {% for t in tests %}
+                            <option value="{{ t.id }}" {{ 'selected' if loop.index == 2 }}>{{ t.name }} — {{ t.inbox }}/{{ t.total }} inbox ({{ t.created_at }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top:12px"><button class="btn btn-primary btn-sm">Compare</button></div>
+            </form>
+            <div id="compare-result" style="margin-top:16px"></div>
+            {% else %}
+            <div class="empty-state"><p>Need at least 2 test runs to compare.</p></div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

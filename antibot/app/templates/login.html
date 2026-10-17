@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>antibot — Login</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="full">
+<div class="login-wrap">
+    <h1>antibot</h1>
+    {% if error == 'bad' %}
+    <div class="alert alert-danger">Login fehlgeschlagen.</div>
+    {% endif %}
+    <form method="post" action="/login">
+        <label>Username</label>
+        <input name="username" required autofocus>
+        <label>Passwort</label>
+        <input name="password" type="password" required>
+        <button class="btn btn-primary" style="margin-top:12px;width:100%">Login</button>
+    </form>
+</div>
+</body>
+</html>

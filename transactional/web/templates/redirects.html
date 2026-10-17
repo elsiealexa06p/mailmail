@@ -1,0 +1,681 @@
+{% extends "base.html" %}
+{% block title %} — Redirects{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Redirect Links</h1></div>
+
+<!-- Redirect Pools -->
+<div class="card">
+    <div class="card-header"><h3>Redirect Pools</h3></div>
+    {% if redirect_pools %}
+    <table style="margin-bottom:12px">
+        <thead><tr><th>Pool</th><th>Links</th><th></th></tr></thead>
+        <tbody>
+        {% for p in redirect_pools %}
+        <tr>
+            <td style="font-weight:500">{{ p.name }}</td>
+            <td>{{ p.count }}</td>
+            <td style="white-space:nowrap">
+                {% if p.count > 0 %}
+                <a href="/redirects/pool/{{ p.id }}/export" class="btn btn-secondary btn-xs">Export .txt</a>
+                <details style="display:inline-block;vertical-align:middle">
+                    <summary class="btn btn-secondary btn-xs" style="display:inline-block">Update Targets</summary>
+                    <form hx-post="/redirects/pool/{{ p.id }}/update-targets"
+                          hx-target="#pool-update-{{ p.id }}"
+                          hx-swap="innerHTML"
+                          style="margin-top:6px;padding:8px;border:1px solid var(--border-light);border-radius:var(--radius);min-width:320px">
+                        <label style="font-size:11px">New Target URL (applies to all {{ p.count }} links)</label>
+                        <input name="new_target" placeholder="https://newdest.example.com">
+                        <label style="display:flex;align-items:center;gap:4px;margin-top:4px;font-weight:400;cursor:pointer">
+                            <input type="checkbox" name="bot_filter" value="1" checked style="margin:0;width:auto">
+                            <span style="font-size:11px">Use bot filter</span>
+                        </label>
+                        <button class="btn btn-primary btn-xs" style="margin-top:6px">Re-upload All</button>
+                        <div id="pool-update-{{ p.id }}" style="margin-top:6px"></div>
+                    </form>
+                </details>
+                {% endif %}
+                <form method="post" action="/redirects/pool/{{ p.id }}/delete" onsubmit="return confirm('Delete pool + all links?')" style="display:inline">
+                    <button class="btn btn-danger btn-xs">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    <form method="post" action="/redirects/add-pool" style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1">
+            <label>New Pool Name</label>
+            <input name="name" placeholder="z.B. FirmaX" required>
+        </div>
+        <button class="btn btn-primary btn-sm">Create Pool</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Bulk Re-Point (all S3 links)</h3>
+    </div>
+    <p style="font-size:12px;color:var(--fg2);margin:0 0 8px">
+        Re-uploads the redirect HTML for <strong>every S3-backed link you own</strong> so
+        it points at a new destination. Google Share links and pasted URLs are skipped
+        (there's nothing on our end to modify). Runs in the background — safe to close
+        the page.
+    </p>
+    <form hx-post="/redirects/update-all-targets"
+          hx-target="#global-update-result"
+          hx-swap="innerHTML"
+          hx-confirm="Re-upload every S3 redirect object to this new target? This overwrites all existing S3 pages."
+          style="display:grid;gap:8px">
+        <div class="grid-2">
+            <div>
+                <label>New Target URL</label>
+                <input name="new_target" placeholder="https://newdest.example.com" required>
+            </div>
+            <div>
+                <label>Scope</label>
+                <select name="scope">
+                    <option value="all" selected>All my S3 links</option>
+                    <option value="pooled">Only pooled links</option>
+                    <option value="unassigned">Only unassigned links</option>
+                </select>
+            </div>
+        </div>
+        {% if s3_accounts %}
+        <div>
+            <label>S3 Account (creds used for the re-upload)</label>
+            <select name="s3_account_id">
+                {% for a in s3_accounts %}
+                <option value="{{ a.id }}" {{ 'selected' if a.is_primary }}>
+                    {{ a.name }}{{ ' (Primary)' if a.is_primary }} — {{ a.region }}
+                </option>
+                {% endfor %}
+            </select>
+            <div class="form-help">
+                Buckets in any region are reachable from a single account's keys.
+            </div>
+        </div>
+        {% endif %}
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+            <input type="checkbox" name="bot_filter" value="1" checked style="margin:0;width:auto">
+            <span>Use bot filter on the new page</span>
+        </label>
+        <div>
+            <button class="btn btn-danger btn-sm" {% if not s3_configured %}disabled{% endif %}>
+                Re-point all S3 links
+            </button>
+        </div>
+    </form>
+    <div id="global-update-result" style="margin-top:10px"></div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3>Per-Recipient Ref Parameter</h3></div>
+    <form method="post" action="/redirects/append-ref-toggle" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin:0">
+            <input type="checkbox" name="append_ref" value="1" style="margin:0;width:auto"
+                    {{ 'checked' if cfg.redirect_append_ref }}>
+            <span><strong>Append <code>?ref=&lt;base64(email)&gt;</code> to every {RedirectLink}</strong></span>
+        </label>
+        <button class="btn btn-primary btn-sm">Save</button>
+        <span style="font-size:11px;color:var(--fg2)">
+            {% if cfg.redirect_append_ref %}
+            <span class="badge badge-running">ON</span> — every redirect link will be rewritten at send time.
+            {% else %}
+            <span class="badge badge-draft">OFF</span> — links go out unchanged.
+            {% endif %}
+        </span>
+    </form>
+    <div class="form-help" style="margin-top:6px">
+        Example: <code>https://share.google/abc123</code> &rarr; <code>https://share.google/abc123?ref=amFuZUBleGFtcGxlLmRl</code>.
+        The recipient email is base64url-encoded — never visible in cleartext in URLs, CDN logs, or browser history.
+        Decode: <code>echo amFuZUBleGFtcGxlLmRl | base64 -d</code> &rarr; <code>jane@example.de</code>.
+        Uses <code>&amp;ref=</code> if the link already has a query string. Works with S3 + Google Share links.
+    </div>
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Generate Redirects (Google Share)</h3>
+        <div class="tab-wrap" style="display:flex;gap:6px;margin-bottom:10px;font-size:12px">
+            <button type="button" class="tab-btn active" onclick="showTab(this, 'gen-tab-single')">Ein Target</button>
+            <button type="button" class="tab-btn" onclick="showTab(this, 'gen-tab-multi')">Mehrere Targets</button>
+        </div>
+
+        <div id="gen-tab-single" class="tab-content active">
+            <form hx-post="/redirects/generate" hx-target="#gen-result" hx-swap="innerHTML">
+                <label>Pool (optional)</label>
+                <select name="pool_id">
+                    <option value="0">No Pool (global)</option>
+                    {% for p in redirect_pools %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+                <label>Target URL</label>
+                <input name="target_url" placeholder="https://yoursite.com/landing" required>
+                <div class="grid-2">
+                    <div><label>Count</label><input name="count" type="number" value="100" min="1"></div>
+                    <div><label>Threads</label><input name="gen_threads" type="number" value="5" min="1" max="50"></div>
+                </div>
+                <label>Proxy (optional — round-robin über Pool-Zeilen)</label>
+                <select name="gen_proxy_id">
+                    <option value="0">— kein Proxy (direkt) —</option>
+                    {% for p in proxies %}
+                    <option value="{{ p.id }}">{{ p.name }}{% if p.get('proxy_type') == 'pool' %} (Pool){% endif %}</option>
+                    {% endfor %}
+                </select>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:400;cursor:pointer">
+                    <input type="checkbox" name="google_rewrite" value="1" style="margin:0;width:auto">
+                    <span>google.xx Format</span>
+                </label>
+                <div style="margin-top:10px"><button class="btn btn-primary">Generate</button></div>
+            </form>
+        </div>
+
+        <div id="gen-tab-multi" class="tab-content">
+            <form hx-post="/redirects/generate-multi" hx-target="#gen-result" hx-swap="innerHTML">
+                <label>Pool (optional)</label>
+                <select name="pool_id">
+                    <option value="0">No Pool (global)</option>
+                    {% for p in redirect_pools %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+                <label>Target-URLs (eine pro Zeile)</label>
+                <textarea name="targets" rows="6" required
+                          style="font-family:monospace;font-size:12px"
+                          placeholder="https://kunde-a.de/landing&#10;https://kunde-b.de/angebot&#10;https://kunde-c.de/promo"></textarea>
+                <div class="grid-2">
+                    <div><label>Links pro Target</label><input name="count_per_target" type="number" value="1" min="1"></div>
+                    <div><label>Threads</label><input name="gen_threads" type="number" value="5" min="1" max="50"></div>
+                </div>
+                <label>Proxy (optional — round-robin über Pool-Zeilen)</label>
+                <select name="gen_proxy_id">
+                    <option value="0">— kein Proxy (direkt) —</option>
+                    {% for p in proxies %}
+                    <option value="{{ p.id }}">{{ p.name }}{% if p.get('proxy_type') == 'pool' %} (Pool){% endif %}</option>
+                    {% endfor %}
+                </select>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:400;cursor:pointer">
+                    <input type="checkbox" name="google_rewrite" value="1" style="margin:0;width:auto">
+                    <span>google.xx Format</span>
+                </label>
+                <div class="form-help">
+                    Für jede Target-URL wird 1 (oder N) share.google-Link erzeugt.
+                    Jeder Link zeigt bei Klick auf sein spezifisches Target — perfekt
+                    wenn du mehrere Kunden/Kampagnen parallel bespielst und Traffic-
+                    Zuordnung willst.
+                </div>
+                <div style="margin-top:10px"><button class="btn btn-primary">Generate</button></div>
+            </form>
+        </div>
+        <div id="gen-result" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+        <h3>Generate Redirects (Google <code>/goto</code>) <span class="badge" style="background:#f5a623;color:#fff">experimental</span></h3>
+        <p class="muted" style="font-size:12px;margin:0 0 8px">
+            Nutzt Googles signed open-redirect <code>www.google.com/goto?url=&lt;token&gt;</code>.
+            Kein Suchmaschinen-Interstitial, direkte Weiterleitung.<br>
+            <strong>&#9888; TTL 1-3 Tage</strong> (Google entscheidet, Token ist signiert).
+            Kurz vor Kampagnenstart generieren. Bei größeren Batches: Proxy-Pool nutzen,
+            sonst rate-limit'et Google nach ~50-100 Requests.<br>
+            <strong>Method:</strong> URL wird als Google-Suche geschickt, das <code>/goto?url=</code>
+            aus der SERP extrahiert — Bruch möglich wenn Google das UI ändert.
+        </p>
+        <form hx-post="/redirects/generate-goto" hx-target="#goto-result" hx-swap="innerHTML">
+            <label>Target URL(s) — eine pro Zeile</label>
+            <textarea name="targets" rows="4" required style="font-family:monospace;font-size:12px"
+                      placeholder="https://mein-landing.de/&#10;https://backup-landing.de/x"></textarea>
+            <div class="form-row">
+                <div>
+                    <label>Links pro Target</label>
+                    <input name="count_per_target" type="number" value="20" min="1" max="500">
+                </div>
+                <div>
+                    <label>Threads</label>
+                    <input name="gen_threads" type="number" value="3" min="1" max="20">
+                    <div class="form-help">Google rate-limitet ab ~10 parallelen Requests je IP.</div>
+                </div>
+            </div>
+            <label>Pool (optional)</label>
+            <select name="pool_id">
+                <option value="0">No Pool (global)</option>
+                {% for p in redirect_pools %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <label>Proxy Pool (empfohlen bei &gt;50 Links)</label>
+            <select name="gen_proxy_id">
+                <option value="0">— Direct (kein Proxy) —</option>
+                {% for p in proxies %}
+                <option value="{{ p.id }}">{{ p.name }} ({{ p.proxy_type }})</option>
+                {% endfor %}
+            </select>
+            <label>Scraping-Engine</label>
+            <select name="engine">
+                <option value="playwright" selected>Playwright (Chromium headless — robust gegen JS-only)</option>
+                <option value="requests">Requests (schnell, aber Google gibt oft nur JS-Skeleton)</option>
+            </select>
+            <div class="form-help">
+                Playwright braucht Chromium installiert:
+                <code>pip install playwright &amp;&amp; playwright install chromium</code>.
+                ~3-5s pro Link, aber führt JS aus wie ein echter Browser.
+                Requests ist schnell (~300ms) aber Google mappt uns aggressiv auf
+                die JS-only SERP → meist kein Token.<br>
+                <strong>&#9888; Proxy-Auth:</strong> Chromium supported <em>kein SOCKS5 mit Auth</em>
+                (bekannter Bug). Was funktioniert:
+                <code>http://user:pass@host:port</code> (HTTP-Proxy mit Auth) ODER
+                <code>socks5://host:port</code> (SOCKS ohne Auth).
+                Bei SOCKS5+Auth wird der Proxy still übersprungen, du siehst das im Test-Status.
+            </div>
+            <div style="margin-top:10px">
+                <button class="btn btn-primary">Generate /goto Links</button>
+                <button type="button" class="btn btn-secondary btn-sm" style="margin-left:8px"
+                        hx-post="/redirects/generate-goto-test"
+                        hx-include="[name='targets'],[name='gen_proxy_id'],[name='engine']"
+                        hx-target="#goto-result" hx-swap="innerHTML">
+                    Test Single (Debug)
+                </button>
+                <span style="font-size:11px;color:var(--fg2);margin-left:6px">
+                    Testet die erste URL aus der Textarea, zeigt HTTP-Status + HTML-Snippet.
+                </span>
+            </div>
+        </form>
+        <div id="goto-result" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+        <h3>Generate Redirects (AWS S3)</h3>
+        {% if not s3_configured %}
+        <div class="alert alert-warning" style="margin-bottom:10px">
+            AWS credentials missing. Save them in <em>S3 Settings</em> below.
+        </div>
+        {% endif %}
+        <form hx-post="/redirects/generate-s3" hx-target="#s3-result" hx-swap="innerHTML">
+            {% if s3_accounts %}
+            <label>S3 Account</label>
+            <select name="s3_account_id">
+                {% for a in s3_accounts %}
+                <option value="{{ a.id }}" {{ 'selected' if a.is_primary }}>{{ a.name }}{{ ' (Primary)' if a.is_primary }} — {{ a.region }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            <label>Pool (optional)</label>
+            <select name="pool_id">
+                <option value="0">No Pool (global)</option>
+                {% for p in redirect_pools %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <label>Target URL</label>
+            <input name="target_url" placeholder="https://yoursite.com/landing" required>
+            <div class="form-row">
+                <div><label>Count</label><input name="count" type="number" value="50" min="1" max="5000"></div>
+                <div><label>Tag (optional)</label><input name="tag" placeholder="campaign-x" maxlength="16"></div>
+            </div>
+            <label style="margin-top:8px">Region</label>
+            <select name="region">
+                <option value="random" selected>&#127922; Random — popular regions only</option>
+                {% for r in aws_regions %}
+                <option value="{{ r }}">{{ r }}</option>
+                {% endfor %}
+            </select>
+            <div class="form-help" style="margin-top:4px">
+                Random pool: us-east-1/2, us-west-1/2, eu-west-1/2/3, eu-central-1,
+                eu-north-1, ca-central-1, ap-northeast-1, ap-southeast-1/2.
+                With <em>Unique bucket per link</em> on, each bucket draws a fresh region from this pool.
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:400;cursor:pointer">
+                <input type="checkbox" name="bot_filter" value="1" checked style="margin:0;width:auto">
+                <span>Bot Filter</span>
+                <span style="font-size:11px;color:var(--fg2)">JS anti-bot gate. Destination is XOR-obfuscated either way.</span>
+            </label>
+            <label style="margin-top:8px">Bucket-Strategie</label>
+            <select name="bucket_strategy" onchange="var s=this.form.querySelector('.shuf-inp');if(s)s.style.display=this.value==='shuffled'?'inline-block':'none'">
+                <option value="shared" selected>Shared — 1 Bucket für alle Links (schnell, wenig Diversität)</option>
+                <option value="shuffled">Shuffled Pool — N Buckets in N Regionen, pro Link random gemixt</option>
+                <option value="unique">Unique per Link — jeder Link eigener Bucket (AWS: 10k/account)</option>
+            </select>
+            <label class="shuf-inp" style="display:none;margin-top:6px">
+                Anzahl Buckets im Pool
+                <input name="shuffle_pool_size" type="number" value="5" min="2" max="500"
+                       style="width:80px;margin-left:6px;display:inline-block">
+                <span style="font-size:11px;color:var(--fg2);margin-left:6px">
+                    (5 = ~10s Setup · 50 = ~2 min · 500 = ~15 min. Danach random verteilt)
+                </span>
+            </label>
+            <div class="form-help" style="margin-top:4px">
+                <strong>Shuffled</strong> ist der „nicht monoton"-Modus: N Buckets werden
+                verteilt über N zufällige Regionen angelegt und die Links dann random gemixt —
+                Origin-Domain, Region und Bucket-Name variieren pro Link.
+                Setup-Zeit ~2s pro Bucket im Pool, Uploads danach sind schnell.
+            </div>
+            <div class="form-help" style="margin-top:6px">
+                URLs are extension-less path-style: <code>https://s3.{region}.amazonaws.com/{bucket}/{key}</code>.
+            </div>
+            <div style="margin-top:10px"><button class="btn btn-primary" {% if not s3_configured %}disabled{% endif %}>Generate S3 Links</button></div>
+        </form>
+        <div id="s3-result" style="margin-top:10px"></div>
+
+        <details style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-light)">
+            <summary style="cursor:pointer;font-weight:600;font-size:14px">
+                &#128260; Multi-Target Bulk: mehrere Ziele in einem Rutsch
+            </summary>
+            <p class="muted" style="font-size:12px;margin:8px 0">
+                Textarea mit einer Ziel-URL pro Zeile — der Mailer arbeitet die
+                nacheinander ab. Wenn <em>Unique bucket per link</em> aus ist,
+                teilen sich alle Targets EINEN Bucket (spart AWS-Setup-Zeit).
+                Ein Job im Widget rechts unten, cancelable.
+            </p>
+            <form hx-post="/redirects/generate-s3-multi" hx-target="#s3-multi-result" hx-swap="innerHTML">
+                {% if s3_accounts %}
+                <label>S3 Account</label>
+                <select name="s3_account_id">
+                    {% for a in s3_accounts %}
+                    <option value="{{ a.id }}" {{ 'selected' if a.is_primary }}>{{ a.name }}{{ ' (Primary)' if a.is_primary }} — {{ a.region }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                <label>Pool (optional)</label>
+                <select name="pool_id">
+                    <option value="0">No Pool (global)</option>
+                    {% for p in redirect_pools %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+                <label>Target URLs (eine pro Zeile)</label>
+                <textarea name="targets" rows="6" style="font-family:monospace;font-size:12px"
+                          placeholder="https://landing-a.tld/&#10;https://landing-b.tld/&#10;https://landing-c.tld/x"
+                          required></textarea>
+                <div class="form-row">
+                    <div>
+                        <label>Links pro Target</label>
+                        <input name="count_per_target" type="number" value="50" min="1" max="5000">
+                    </div>
+                    <div>
+                        <label>Tag (optional)</label>
+                        <input name="tag" placeholder="campaign-x" maxlength="16">
+                    </div>
+                </div>
+                <label style="margin-top:8px">Region</label>
+                <select name="region">
+                    <option value="random" selected>&#127922; Random — popular regions only</option>
+                    {% for r in aws_regions %}
+                    <option value="{{ r }}">{{ r }}</option>
+                    {% endfor %}
+                </select>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:400;cursor:pointer">
+                    <input type="checkbox" name="bot_filter" value="1" checked style="margin:0;width:auto">
+                    <span>Bot Filter</span>
+                </label>
+                <label style="margin-top:8px">Bucket-Strategie</label>
+                <select name="bucket_strategy" onchange="var s=this.form.querySelector('.shuf-inp2');if(s)s.style.display=this.value==='shuffled'?'inline-block':'none'">
+                    <option value="shared" selected>Shared — 1 Bucket über alle Targets (schnell)</option>
+                    <option value="shuffled">Shuffled Pool — N Buckets random gemixt (empfohlen für Anti-Cluster)</option>
+                    <option value="unique">Unique per Link — jeder Link eigener Bucket (langsam: 1-2s/Bucket)</option>
+                </select>
+                <label class="shuf-inp2" style="display:none;margin-top:6px">
+                    Anzahl Buckets im Pool
+                    <input name="shuffle_pool_size" type="number" value="5" min="2" max="500"
+                           style="width:80px;margin-left:6px;display:inline-block">
+                    <span style="font-size:11px;color:var(--fg2);margin-left:6px">
+                        (5 = ~10s Setup · 50 = ~2 min · 500 = ~15 min. Danach random verteilt)
+                    </span>
+                </label>
+                <div style="margin-top:10px">
+                    <button class="btn btn-primary" {% if not s3_configured %}disabled{% endif %}>
+                        Generate S3 Multi-Target
+                    </button>
+                </div>
+            </form>
+            <div id="s3-multi-result" style="margin-top:10px"></div>
+        </details>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3>S3 Accounts</h3></div>
+    {% if s3_accounts %}
+    <table style="margin-bottom:12px">
+        <thead><tr><th>Name</th><th>Access Key</th><th>Region</th><th>Proxy</th><th>Primary</th><th></th></tr></thead>
+        <tbody>
+        {% for a in s3_accounts %}
+        <tr>
+            <td style="font-weight:500">{{ a.name }}</td>
+            <td style="font-family:monospace;font-size:11px">{{ a.access_key[:8] }}…{{ a.access_key[-4:] }}</td>
+            <td><span class="badge badge-info">{{ a.region }}</span></td>
+            <td style="font-size:11px;color:var(--fg2)">
+                {% if a.proxy_id %}
+                {% for p in proxies %}{% if p.id == a.proxy_id %}{{ p.name }}{% endif %}{% endfor %}
+                {% else %}—{% endif %}
+            </td>
+            <td>
+                {% if a.is_primary %}<span class="badge badge-running">Primary</span>
+                {% else %}
+                <form method="post" action="/redirects/s3-accounts/{{ a.id }}/set-primary" style="display:inline">
+                    <button class="btn btn-secondary btn-xs">Set Primary</button>
+                </form>
+                {% endif %}
+            </td>
+            <td style="white-space:nowrap">
+                <details style="display:inline-block;vertical-align:middle">
+                    <summary class="btn btn-secondary btn-xs" style="display:inline-block">Edit</summary>
+                    <form method="post" action="/redirects/s3-accounts/{{ a.id }}/update"
+                          style="margin-top:6px;padding:8px;border:1px solid var(--border-light);border-radius:var(--radius);min-width:300px">
+                        <label style="font-size:11px">Name</label>
+                        <input name="name" value="{{ a.name }}">
+                        <label style="font-size:11px">Access Key</label>
+                        <input name="access_key" value="{{ a.access_key }}">
+                        <label style="font-size:11px">Secret Key</label>
+                        <input name="secret_key" type="password" placeholder="(leave empty to keep)">
+                        <label style="font-size:11px">Region</label>
+                        <select name="region">
+                            {% for r in aws_regions %}
+                            <option value="{{ r }}" {{ 'selected' if a.region == r }}>{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                        <label style="font-size:11px">Proxy</label>
+                        <select name="proxy_id">
+                            <option value="0">No Proxy</option>
+                            {% for p in proxies %}
+                            <option value="{{ p.id }}" {{ 'selected' if a.proxy_id == p.id }}>{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-primary btn-xs" style="margin-top:6px">Save</button>
+                    </form>
+                </details>
+                <button class="btn btn-secondary btn-xs" type="button"
+                        hx-post="/redirects/s3-test"
+                        hx-vals='{"s3_account_id":"{{ a.id }}"}'
+                        hx-target="#s3-test-result"
+                        hx-swap="innerHTML">Test</button>
+                <form method="post" action="/redirects/s3-accounts/{{ a.id }}/delete" onsubmit="return confirm('Delete account?')" style="display:inline">
+                    <button class="btn btn-danger btn-xs">Del</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <div id="s3-test-result" style="margin-bottom:12px"></div>
+    {% endif %}
+
+    <details {% if not s3_accounts %}open{% endif %}>
+        <summary class="btn btn-primary btn-sm" style="display:inline-block">Add S3 Account</summary>
+        <form method="post" action="/redirects/s3-accounts/add" style="margin-top:10px;max-width:560px">
+            <div class="form-row">
+                <div><label>Account Name</label><input name="name" placeholder="Main / Backup / EU-Pool" required></div>
+                <div>
+                    <label>Region</label>
+                    <select name="region">
+                        {% for r in aws_regions %}
+                        <option value="{{ r }}" {{ 'selected' if r == 'eu-central-1' }}>{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row" style="margin-top:6px">
+                <div><label>Access Key ID</label><input name="access_key" placeholder="AKIA..." required></div>
+                <div><label>Secret Access Key</label><input name="secret_key" type="password" required></div>
+            </div>
+            <label style="margin-top:6px">Proxy</label>
+            <select name="proxy_id">
+                <option value="0">No Proxy</option>
+                {% for p in proxies %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <div style="margin-top:10px"><button class="btn btn-primary btn-sm">Add Account</button></div>
+        </form>
+    </details>
+</div>
+
+<div class="card">
+    <h3>Add Manually</h3>
+        <form method="post" action="/redirects/add">
+            <label>Pool (optional)</label>
+            <select name="pool_id">
+                <option value="0">No Pool (global)</option>
+                {% for p in redirect_pools %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="form-row" style="margin-top:8px">
+                <div><input name="short_url" placeholder="https://g.co/kgs/abc123" style="margin:0"></div>
+                <div class="shrink"><button class="btn btn-primary btn-sm">Add</button></div>
+            </div>
+        </form>
+    <form hx-post="/redirects/bulk-add" hx-target="#bulk-result" hx-swap="innerHTML" style="margin-top:12px">
+        <label>Pool (optional — leer = No Pool / global)</label>
+        <select name="pool_id" style="max-width:280px">
+            <option value="0">No Pool (global)</option>
+            {% for p in redirect_pools %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+        </select>
+        <label style="margin-top:8px">Bulk Add (one URL per line)</label>
+        <textarea name="urls" rows="4" placeholder="https://g.co/kgs/abc123&#10;https://g.co/kgs/def456" style="font-family:monospace;font-size:12px"></textarea>
+        <div style="margin-top:8px"><button class="btn btn-secondary btn-sm">Bulk Add</button></div>
+    </form>
+    <div id="bulk-result" style="margin-top:8px"></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>All Redirects <span class="count">{{ redirect_count }}</span></h3>
+        {% if redirects %}
+        <div class="btn-group">
+            <a href="/redirects/export" class="btn btn-secondary btn-sm">Export .txt</a>
+            <form method="post" action="/redirects/clear" onsubmit="return confirm('Clear ALL redirects?')">
+                <button class="btn btn-danger btn-sm">Clear All</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    {% if redirects and redirect_pools %}
+    <div style="margin-bottom:10px;padding:8px;border:1px solid var(--border-light);border-radius:var(--radius);background:var(--bg);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <form hx-post="/redirects/move-latest" hx-target="#move-latest-result" hx-swap="innerHTML"
+              style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <strong style="font-size:13px">Move latest</strong>
+            <input name="count" type="number" value="100" min="1" max="50000" style="width:80px;margin:0">
+            <span style="font-size:12px;color:var(--fg2)">unassigned links &rarr;</span>
+            <select name="pool_id" style="max-width:200px;margin:0">
+                {% for p in redirect_pools %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-primary btn-xs" type="submit">Move</button>
+        </form>
+        <span id="move-latest-result" style="font-size:12px"></span>
+    </div>
+    {% endif %}
+    {% if redirects %}
+    {% if redirect_pools %}
+    <div style="margin-bottom:10px;padding:8px;border:1px solid var(--border-light);border-radius:var(--radius);background:var(--bg)">
+        <form hx-post="/redirects/bulk-assign-pool"
+              hx-target="#bulk-assign-result"
+              hx-swap="innerHTML"
+              hx-include="[name='link_ids[]']"
+              style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <strong style="font-size:13px">Bulk assign:</strong>
+            <span style="font-size:12px;color:var(--fg2)">tick rows in the table, then choose target pool:</span>
+            <select name="pool_id" style="max-width:200px">
+                <option value="0">— No Pool (clear)</option>
+                {% for p in redirect_pools %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-primary btn-xs" type="submit">Move Selected</button>
+            <span id="bulk-assign-result" style="font-size:12px"></span>
+        </form>
+    </div>
+    {% endif %}
+    <table>
+        <thead><tr>
+            <th style="width:24px">
+                {% if redirect_pools %}<input type="checkbox" id="bulk-toggle-all"
+                    onclick="document.querySelectorAll('input[name=\'link_ids[]\']').forEach(c=>c.checked=this.checked)">{% endif %}
+            </th>
+            <th>Short URL</th><th>Target</th><th>Pool</th><th>Created</th><th></th>
+        </tr></thead>
+        <tbody>
+        {% for r in redirects[:100] %}
+        <tr>
+            <td>
+                {% if redirect_pools %}<input type="checkbox" name="link_ids[]" value="{{ r.id }}">{% endif %}
+            </td>
+            <td style="font-family:monospace;font-size:12px"><a href="{{ r.short_url }}" target="_blank" style="color:var(--accent)">{{ r.short_url }}</a></td>
+            <td style="font-size:11px;color:var(--fg2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ r.target_url or '' }}">{{ r.target_url or '—' }}</td>
+            <td id="pool-cell-{{ r.id }}" style="font-size:12px;color:var(--fg2)">
+                {% if redirect_pools %}
+                <select hx-post="/redirects/{{ r.id }}/set-pool"
+                        hx-target="#pool-cell-{{ r.id }}"
+                        hx-swap="innerHTML"
+                        hx-trigger="change"
+                        name="pool_id" style="margin:0;padding:2px 4px;font-size:11px;max-width:160px">
+                    <option value="0" {{ 'selected' if not r.pool_id }}>— No Pool</option>
+                    {% for p in redirect_pools %}
+                    <option value="{{ p.id }}" {{ 'selected' if p.id == r.pool_id }}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                {% if r.pool_id %}{% for p in redirect_pools %}{% if p.id == r.pool_id %}{{ p.name }}{% endif %}{% endfor %}{% else %}—{% endif %}
+                {% endif %}
+            </td>
+            <td style="font-size:11px;color:var(--fg2)">{{ r.created_at }}</td>
+            <td style="white-space:nowrap">
+                <details style="display:inline-block;vertical-align:middle">
+                    <summary class="btn btn-secondary btn-xs" style="display:inline-block">Edit Target</summary>
+                    <form hx-post="/redirects/{{ r.id }}/update-target"
+                          hx-target="#update-result-{{ r.id }}"
+                          hx-swap="innerHTML"
+                          style="margin-top:6px;padding:8px;border:1px solid var(--border-light);border-radius:var(--radius);min-width:300px">
+                        <label style="font-size:11px">New Target URL</label>
+                        <input name="new_target" value="{{ r.target_url or '' }}" placeholder="https://...">
+                        <label style="display:flex;align-items:center;gap:4px;margin-top:4px;font-weight:400;cursor:pointer">
+                            <input type="checkbox" name="bot_filter" value="1" checked style="margin:0;width:auto">
+                            <span style="font-size:11px">Use bot filter</span>
+                        </label>
+                        <button class="btn btn-primary btn-xs" style="margin-top:6px">Re-upload to S3</button>
+                        <span id="update-result-{{ r.id }}" style="margin-left:6px;font-size:11px"></span>
+                    </form>
+                </details>
+                <button type="button" class="btn btn-danger btn-xs"
+                        hx-post="/redirects/{{ r.id }}/delete"
+                        hx-confirm="Delete this link?"
+                        hx-swap="none"
+                        hx-on::after-request="if(event.detail.successful){this.closest('tr').remove()}">Del</button>
+            </td>
+        </tr>
+        {% endfor %}
+        {% if redirects|length > 100 %}
+        <tr><td colspan="6" style="text-align:center;color:var(--fg2);font-size:12px">Showing first 100 of {{ redirect_count }}</td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><p>No redirect links. Generate or add manually above.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

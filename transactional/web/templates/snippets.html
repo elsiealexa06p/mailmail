@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %} — Snippets{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Snippet Assembly</h1>
+    <div class="btn-group">
+        <button class="btn btn-secondary btn-sm"
+                hx-get="/snippets/preview" hx-target="#preview-box" hx-swap="innerHTML">
+            Preview Random Assembly
+        </button>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+    <p class="muted" style="font-size:12px;margin:0">
+        Pro Slot ein Pool. Sobald eine Kampagne <strong>Assembly Mode</strong>
+        aktiviert hat, würfelt der Sende-Loop pro Mail aus jedem Slot einen
+        aktiven Snippet und setzt sie in der Reihenfolge
+        <code>header → intro → body → outro → footer</code> zusammen.
+        Kombiniert mit Macros + Spintax + Anti-FP-Transforms ergibt das
+        praktisch unendlich viele Varianten. Deaktivierte Snippets werden
+        ignoriert. Leere Slots werden übersprungen.
+    </p>
+</div>
+
+<div id="preview-box" style="margin-bottom:16px"></div>
+
+{% for slot in slots %}
+<div class="card" style="margin-bottom:12px">
+    <div class="card-header">
+        <h3 style="text-transform:capitalize">{{ slot }}
+            <span class="count">{{ grouped[slot]|length }}</span></h3>
+        <span style="margin-left:auto;font-size:12px;color:var(--fg2)">
+            {{ slot_labels[slot] }}
+        </span>
+    </div>
+
+    {% for s in grouped[slot] %}
+    <details>
+        <summary style="display:flex;align-items:center;gap:8px">
+            {% if s.is_active %}
+            <span class="badge badge-running">aktiv</span>
+            {% else %}
+            <span class="badge badge-failed">inaktiv</span>
+            {% endif %}
+            <strong>{{ s.label or "(ohne Label)" }}</strong>
+            <span style="color:var(--fg2);font-size:11px">
+                {{ s.content|length }} chars
+            </span>
+        </summary>
+        <div class="details-body" style="padding-top:8px">
+            <form method="post" action="/snippets/{{ s.id }}/save">
+                <label>Label</label>
+                <input name="label" value="{{ s.label or '' }}">
+                <label>HTML Content</label>
+                <textarea name="content" rows="8" style="font-family:monospace;font-size:12px">{{ s.content }}</textarea>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:8px">
+                    <input type="checkbox" name="is_active" value="1"
+                           style="width:auto" {{ 'checked' if s.is_active }}>
+                    <span>Aktiv im Pool</span>
+                </label>
+                <div style="margin-top:8px;display:flex;gap:6px">
+                    <button class="btn btn-primary btn-sm">Save</button>
+                    <form method="post" action="/snippets/{{ s.id }}/toggle" style="display:inline">
+                        <button class="btn btn-secondary btn-sm">
+                            {{ 'Deactivate' if s.is_active else 'Activate' }}
+                        </button>
+                    </form>
+                    <form method="post" action="/snippets/{{ s.id }}/delete"
+                          onsubmit="return confirm('Delete snippet?')" style="display:inline">
+                        <button class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </div>
+            </form>
+        </div>
+    </details>
+    {% endfor %}
+
+    <details {{ 'open' if not grouped[slot] }} style="margin-top:8px;border:1px dashed var(--border-light);border-radius:var(--radius);padding:6px 10px">
+        <summary style="cursor:pointer;font-size:12px">+ Neuen {{ slot }}-Snippet hinzufügen</summary>
+        <form method="post" action="/snippets/add" style="margin-top:8px">
+            <input type="hidden" name="slot" value="{{ slot }}">
+            <label>Label (nur intern)</label>
+            <input name="label" placeholder="z.B. Variant A, Formal, Warm">
+            <label>HTML Content</label>
+            <textarea name="content" rows="6" required
+                      style="font-family:monospace;font-size:12px"
+                      placeholder="<div>...HTML mit {Macros} und {email_user} etc...</div>"></textarea>
+            <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Add {{ slot }}</button></div>
+        </form>
+    </details>
+</div>
+{% endfor %}
+{% endblock %}

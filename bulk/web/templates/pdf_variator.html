@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %} — PDF Variator{% endblock %}
+{% block content %}
+<div class="page-header"><h1>PDF Variator</h1></div>
+
+<div class="card">
+    <p style="font-size:13px;color:var(--fg2)">
+        Erzeugt aus einer Source-PDF <strong>N einzigartige Varianten</strong> —
+        visuell 1:1 identisch, aber Byte-, Fuzzy-Hash- und pHash-mäßig komplett
+        unterschiedlich. Ziel: Halon/Expurgate-Fuzzy-Matching bei längeren Kampagnen umgehen.
+    </p>
+    <p style="font-size:12px;color:var(--fg2);margin:6px 0 0">
+        <strong>Kein Server-Speicher</strong> — Streaming-ZIP direkt in deinen
+        Browser-Download. Source landet nur temporär im RAM. Wenn du den Download
+        abbrichst, bleibt nichts auf'm Server.
+    </p>
+    {% if not pikepdf_ok %}
+    <div class="alert alert-danger" style="margin-top:10px">
+        <strong>pikepdf fehlt.</strong> Nach dem nächsten Deploy muss
+        <code>pip install pikepdf</code> im venv laufen —
+        <code>bash ~/mailer/deploy/update.sh</code> ist idempotent + macht das.
+    </div>
+    {% else %}
+    <p class="muted" style="margin-top:6px">pikepdf {{ pike_ver }} bereit ✓</p>
+    {% endif %}
+</div>
+
+<form enctype="multipart/form-data" style="margin-top:16px">
+    <div class="grid-2" style="align-items:start">
+        <div class="card">
+            <h3>Source + Anzahl</h3>
+            <label>PDF hochladen (max 50 MB)</label>
+            <input type="file" name="source" accept="application/pdf" required>
+
+            <label style="margin-top:12px">Anzahl Varianten</label>
+            <select name="count" style="width:auto">
+                <option value="10">10 (Test)</option>
+                <option value="100" selected>100</option>
+                <option value="250">250</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+            </select>
+            <div class="form-help">
+                Zeitschätzung: ~0.5–2 s pro Variante (abhängig von PDF-Größe
+                und Anzahl Bilder). 100 Katalog-PDFs ≈ 1–3 Min, 1000 ≈ 10–30 Min.
+                Der Download läuft mit — Browser nicht schließen.
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Layer</h3>
+            <p style="font-size:12px;color:var(--fg2);margin:0 0 8px">
+                <strong>A</strong> Filename-Pool · <strong>B</strong> Metadaten ·
+                <strong>C</strong> Struktur-Scrub<br>
+                — diese drei laufen immer.
+            </p>
+
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+                <input type="checkbox" name="layer_image" value="1" checked>
+                <strong>D</strong>&nbsp;Image-Manipulation (Pixel-Nudge + JPEG-Reencode)
+            </label>
+            <div class="form-help" style="margin-left:22px">
+                Wichtigster Layer gegen pHash. Bilder werden pixelweise verändert
+                (unsichtbar) und JPEGs mit random Quality re-encodet.
+            </div>
+
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:6px">
+                <input type="checkbox" name="layer_byte_noise" value="1" checked>
+                <strong>E</strong>&nbsp;Byte-Level-Noise (Content-Stream Recompress + EOF-Padding)
+            </label>
+            <div class="form-help" style="margin-left:22px">
+                Ändert Fuzzy-Hashes (ssdeep/tlsh). Kein visueller Impact.
+            </div>
+
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:6px">
+                <input type="checkbox" name="layer_cmap_poison" value="1">
+                <strong>F</strong>&nbsp;Textlayer-Vergiftung (ToUnicode-CMap)
+            </label>
+            <div class="form-help" style="margin-left:22px;color:var(--red)">
+                &#9888; <strong>Empfänger, der Text aus dem PDF kopiert, kriegt Zeichensalat.</strong>
+                Nur nutzen wenn Kataloge nicht per Copy-Paste weiterverarbeitet werden.
+                Wirksam gegen Content-Filter die Text extrahieren.
+            </div>
+
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:6px">
+                <input type="checkbox" name="layer_hidden_text" value="1">
+                <strong>G</strong>&nbsp;Hidden-Text (experimentell, weiß auf weiß)
+            </label>
+            <div class="form-help" style="margin-left:22px">
+                Klebt 2-4 unsichtbare Wörter auf die letzte Seite. Ändert Text-Extraktion.
+                Manche Filter können's als „hidden text"-Trick erkennen.
+                Erst mit Test-Report checken.
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+        <h3>Filename-Suffix</h3>
+        <p class="muted" style="margin:0 0 10px">
+            Aktueller Monat: <strong>{{ current_month_de }} ({{ current_month }})</strong>,
+            Jahr <strong>{{ current_year }}</strong>, KW <strong>{{ current_kw }}</strong>.
+            Beispiel-Filename: <code>Katalog_KW{{ '%02d'|format(current_kw) }}.pdf</code>,
+            <code>Sortiment_{{ current_month_de }}_{{ current_year }}.pdf</code>, …
+        </p>
+        <div class="grid-2">
+            <div>
+                <label>Referenz-Monat</label>
+                <select name="ref_month">
+                    <option value="auto" selected>Aktueller Monat ({{ current_month_de }})</option>
+                    {% for n, name in months_de %}
+                    <option value="{{ n }}">{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Referenz-Jahr</label>
+                <select name="ref_year">
+                    <option value="auto" selected>Aktuelles Jahr ({{ current_year }})</option>
+                    {% for y in range(2023, 2028) %}
+                    <option value="{{ y }}">{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <label style="margin-top:12px">Aktive Suffix-Typen (random pick pro Variante)</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:12px">
+            {% for k, label in suffix_types %}
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin:0">
+                <input type="checkbox" name="suffix_{{ k }}" value="1"
+                       {% if k in default_active_suffixes %}checked{% endif %}
+                       style="margin:0;width:auto">
+                <span>{{ label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        <div class="form-help" style="margin-top:8px">
+            Mind. einer muss aktiv sein — wenn alle deaktiviert, fällt's auf „Kein Suffix" zurück.
+            Bei Filename-Kollisionen (mehr Files als Base+Suffix-Kombinationen) hängt der Writer
+            automatisch <code>_2</code>, <code>_3</code>, … an.
+        </div>
+    </div>
+
+    <details style="margin-top:16px" {% if pools_saved %}open{% endif %}>
+        <summary style="cursor:pointer;padding:8px;background:var(--bg-alt,#eee);border-radius:4px">
+            Pools bearbeiten (Filename, Metadaten-Strings)
+            {% if pools_saved %}<span style="color:var(--green);font-size:11px;margin-left:8px">✓ eigene Pools gespeichert</span>{% endif %}
+        </summary>
+        <div class="grid-2" style="padding-top:12px;align-items:start">
+            <div class="card">
+                <label>Filename-Pool (eine pro Zeile)</label>
+                <textarea name="pool_filename" rows="8" style="font-family:monospace;font-size:11px">{{ pool_filename }}</textarea>
+
+                <label>Producer-Pool</label>
+                <textarea name="pool_producer" rows="6" style="font-family:monospace;font-size:11px">{{ pool_producer }}</textarea>
+
+                <label>Creator-Pool</label>
+                <textarea name="pool_creator" rows="6" style="font-family:monospace;font-size:11px">{{ pool_creator }}</textarea>
+
+                <label>Author-Pool</label>
+                <textarea name="pool_author" rows="6" style="font-family:monospace;font-size:11px">{{ pool_author }}</textarea>
+            </div>
+            <div class="card">
+                <label>Title-Pool</label>
+                <textarea name="pool_title" rows="6" style="font-family:monospace;font-size:11px">{{ pool_title }}</textarea>
+
+                <label>Subject-Pool</label>
+                <textarea name="pool_subject" rows="4" style="font-family:monospace;font-size:11px">{{ pool_subject }}</textarea>
+
+                <label>Keywords-Pool (kommagetrennt)</label>
+                <textarea name="pool_keywords" rows="3" style="font-family:monospace;font-size:11px">{{ pool_keywords }}</textarea>
+            </div>
+        </div>
+        <div style="margin-top:8px;padding:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button type="button" class="btn btn-success btn-sm"
+                    hx-post="/pdf-variator/pools/save"
+                    hx-target="#pools-save-result"
+                    hx-swap="innerHTML"
+                    hx-include="closest form">
+                Pools speichern
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-post="/pdf-variator/pools/reset"
+                    hx-target="#pools-save-result"
+                    hx-swap="innerHTML"
+                    hx-confirm="Gespeicherte Pools löschen und beim nächsten Reload die Defaults laden?">
+                Auf Defaults zurücksetzen
+            </button>
+            <span id="pools-save-result"></span>
+        </div>
+    </details>
+
+    <div class="btn-group" style="margin-top:16px">
+        <button type="button" class="btn btn-secondary"
+                hx-post="/pdf-variator/test-report"
+                hx-target="#test-result"
+                hx-swap="innerHTML"
+                hx-include="closest form"
+                hx-encoding="multipart/form-data"
+                {% if not pikepdf_ok %}disabled{% endif %}>
+            Test-Report (3 Varianten)
+        </button>
+        <button type="submit" class="btn btn-primary"
+                formaction="/pdf-variator/generate"
+                formmethod="post"
+                {% if not pikepdf_ok %}disabled{% endif %}>
+            Generate &amp; Download ZIP
+        </button>
+    </div>
+    <div id="test-result" style="margin-top:12px"></div>
+</form>
+{% endblock %}

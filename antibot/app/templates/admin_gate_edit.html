@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% set active = "gates" %}
+{% block content %}
+<div class="page-header">
+    <h1>Gate: {{ gate.hostname }}</h1>
+    <a href="/admin/gates" class="btn btn-secondary btn-sm">← Alle Gates</a>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert alert-success">Gespeichert.</div>{% endif %}
+{% if request.query_params.get('ts_updated') %}
+<div class="alert alert-success">✓ Turnstile-Keys aus Cloudflare übernommen und gespeichert.</div>
+{% endif %}
+{% if request.query_params.get('ts_cleared') %}
+<div class="alert alert-success">✓ Turnstile für dieses Gate deaktiviert (Keys geleert).</div>
+{% endif %}
+{% if request.query_params.get('ts_bad') %}
+<div class="alert alert-warn">
+    ⚠ Turnstile-Keys hatten ungültiges Format: {{ request.query_params.get('ts_bad').replace('+', ' ') }}.
+    <strong>Bestehende Werte wurden behalten</strong> (nicht überschrieben). Neu eintragen: echte Keys aus dem CF-Dashboard, sie starten mit <code>0x4AAA…</code>.
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+            <h3 style="margin:0">Health Check</h3>
+            <p class="muted" style="margin:0;font-size:12px">
+                Prüft DNS, TLS-Cert, HTTP-Ping, Turnstile-Auth und Cloudflare-Records.
+                Sagt dir auch wann's Zeit ist auf CF-Wolke orange umzuschalten.
+            </p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm"
+                hx-post="/admin/gates/{{ gate.id }}/health-check"
+                hx-target="#health-check-result" hx-swap="innerHTML"
+                hx-indicator="#health-check-loading">
+            Check ausführen
+        </button>
+    </div>
+    <div id="health-check-loading" class="htmx-indicator" style="font-size:12px;margin-top:6px;color:var(--fg2)">
+        Läuft … (DNS + TLS + HTTP + Turnstile-Auth + CF, dauert ~5-10s)
+    </div>
+    <div id="health-check-result" style="margin-top:10px"></div>
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Config</h3>
+        <form method="post" action="/admin/gates/{{ gate.id }}/save" enctype="multipart/form-data">
+            <label style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" name="active" value="1" {% if gate.active %}checked{% endif %}>
+                Aktiv (bei „aus" fallen alle Links auf 404)
+            </label>
+
+            <label>Modus</label>
+            <select name="mode">
+                {% for k, p in presets.items() %}
+                <option value="{{ k }}" {% if gate.mode == k %}selected{% endif %}>
+                    {{ p.label }} (allow ≤ {{ p.threshold_allow }}, block ≥ {{ p.threshold_block }})
+                </option>
+                {% endfor %}
+            </select>
+
+            <label>Ziel-URL(s) (Fallback für Links ohne target_override)</label>
+            <textarea name="target_url" rows="3" style="font-family:monospace;font-size:12px">{{ gate.target_url }}</textarea>
+            <div class="form-help">
+                Eine URL = alle Klicks landen dort. <strong>Mehrere URLs</strong>
+                (eine pro Zeile oder komma-getrennt) = <strong>pro Klick random gepickt</strong>
+                (50/50 bei zwei, 25/25/25/25 bei vier usw.). Ändern → wirkt sofort auf
+                alle bestehenden Ready-Links, kein Regenerieren nötig.
+            </div>
+
+            <label>Wartetext</label>
+            <input name="brand_text" value="{{ gate.brand_text }}">
+            <label>Primary Color</label>
+            <input name="brand_color" type="color" value="{{ gate.brand_color }}" style="width:60px;height:34px">
+            <label>Neues Logo hochladen (optional)</label>
+            <input type="file" name="logo" accept="image/*">
+            {% if gate.logo_path %}
+            <div style="margin-top:6px;background:#eee;padding:6px;border-radius:4px;display:inline-block">
+                <img src="{{ gate.logo_path }}" style="max-height:40px">
+            </div>
+            {% endif %}
+
+            <label style="margin-top:12px">Turnstile Site Key <span class="muted" style="font-size:11px">(Format: 0x4AAAAAA…)</span></label>
+            <input name="turnstile_site_key" value="{{ gate.turnstile_site_key }}"
+                   autocomplete="off" data-lpignore="true" data-1p-ignore="true"
+                   data-bwignore="true" placeholder="0x4AAAAAA…">
+            <label>Turnstile Secret Key <span class="muted" style="font-size:11px">(Format: 0x4AAAAAA…)</span></label>
+            <input name="turnstile_secret_key" type="text" value="{{ gate.turnstile_secret_key }}"
+                   autocomplete="off" data-lpignore="true" data-1p-ignore="true"
+                   data-bwignore="true" placeholder="0x4AAAAAA…"
+                   style="font-family:monospace;font-size:12px">
+            <div class="form-help" style="color:var(--fg2)">
+                Beide Keys starten mit <code>0x</code>. Leer lassen beim Speichern = existierende Werte
+                bleiben erhalten (Schutz gegen versehentliches Killen nach CF-Picker).
+                Zum echten Löschen: Button „Turnstile deaktivieren" unten.
+            </div>
+            <div style="margin-top:8px;padding:8px;background:#f5f6f8;border-radius:4px">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-secondary btn-xs"
+                            hx-get="/admin/gates/{{ gate.id }}/turnstile-manage"
+                            hx-target="#ts-widget-manager" hx-swap="innerHTML">
+                        Turnstile-Widgets aus CF holen / neues erstellen
+                    </button>
+                    {% if gate.turnstile_site_key or gate.turnstile_secret_key %}
+                    <button type="button" class="btn btn-danger btn-xs"
+                            hx-post="/admin/gates/{{ gate.id }}/turnstile-clear"
+                            hx-confirm="Turnstile für dieses Gate wirklich deaktivieren (beide Keys löschen)?">
+                        Turnstile deaktivieren
+                    </button>
+                    {% endif %}
+                </div>
+                <div style="font-size:11px;color:var(--fg2);margin-top:4px">
+                    Status: {% if gate.turnstile_site_key and gate.turnstile_secret_key %}
+                    <span class="v-allow">✓ aktiv</span> — Site-Key
+                    <code>{{ gate.turnstile_site_key[:10] }}…{{ gate.turnstile_site_key[-4:] }}</code>
+                    ({{ gate.turnstile_site_key|length }} chars)
+                    {% else %}
+                    <span class="muted">inaktiv (kein Widget hinterlegt)</span>
+                    {% endif %}
+                </div>
+                <div id="ts-widget-manager" style="margin-top:10px"></div>
+            </div>
+
+            <button class="btn btn-primary btn-sm" style="margin-top:12px">Speichern</button>
+        </form>
+
+        <hr style="margin:16px 0">
+        <h4 style="margin:0 0 8px">Dynadot Nameserver retry</h4>
+        <p class="muted" style="font-size:12px">
+            Falls das automatische NS-Setzen beim Deploy nicht klappte
+            (Dynadot braucht bei frisch gekauften Domains manchmal ein paar Minuten):
+            hier nochmal versuchen. Retry-Pattern .de = 4x mit 30s Delay,
+            sonst 2x mit 10s.
+        </p>
+        <button type="button" class="btn btn-secondary btn-xs"
+                hx-post="/admin/gates/{{ gate.id }}/retry-set-ns"
+                hx-target="#ns-retry-result" hx-swap="innerHTML">
+            NS bei Dynadot nochmal setzen
+        </button>
+        <div id="ns-retry-result" style="font-size:12px;margin-top:6px"></div>
+
+        <hr style="margin:16px 0">
+        <h4 style="margin:0 0 8px">CF-Wolke (Proxied)</h4>
+        <p class="muted" style="font-size:12px">
+            Erst NACHDEM Caddy das LE-Cert für diese Domain geholt hat auf
+            <em>orange</em> stellen — sonst kommt kein Traffic mehr durch.
+            Prüfen mit: <code>curl -sI https://{{ gate.hostname }}/health</code>.
+        </p>
+        <div class="btn-group">
+            <button type="button" class="btn btn-success btn-xs"
+                    hx-post="/admin/gates/{{ gate.id }}/cf-proxy-toggle"
+                    hx-vals='{"proxied":"1"}'
+                    hx-target="#cf-toggle-result" hx-swap="innerHTML"
+                    hx-confirm="Alle A/CNAME-Records für {{ gate.hostname }} auf orange (proxied) setzen?">
+                Wolke auf orange (proxied)
+            </button>
+            <button type="button" class="btn btn-secondary btn-xs"
+                    hx-post="/admin/gates/{{ gate.id }}/cf-proxy-toggle"
+                    hx-vals='{"proxied":"0"}'
+                    hx-target="#cf-toggle-result" hx-swap="innerHTML">
+                Wolke auf grau (DNS only)
+            </button>
+        </div>
+        <div id="cf-toggle-result" style="font-size:12px;margin-top:6px"></div>
+    </div>
+
+    <div class="card">
+        <h3>Ready-Links generieren</h3>
+        <form hx-post="/admin/gates/{{ gate.id }}/links/generate"
+              hx-target="#gen-result" hx-swap="innerHTML">
+            <div class="grid-2">
+                <div>
+                    <label>Anzahl</label>
+                    <input name="count" type="number" value="10" min="1" max="500">
+                </div>
+                <div>
+                    <label>Slug-Länge</label>
+                    <input name="slug_length" type="number" value="8" min="4" max="24">
+                </div>
+            </div>
+            <label>Ziel-Override (optional — sonst wird Gate-Ziel genommen)</label>
+            <input name="target_override" placeholder="https://andere-landing.de/x">
+            <label>Label (nur intern, für dich)</label>
+            <input name="label" placeholder="z.B. Newsletter März">
+            <button class="btn btn-primary btn-sm" style="margin-top:8px">Generate</button>
+        </form>
+        <div id="gen-result" style="margin-top:8px"></div>
+
+        <div style="margin-top:12px" class="btn-group">
+            <a href="/admin/gates/{{ gate.id }}/links.txt" class="btn btn-secondary btn-sm">Alle als .txt</a>
+            <form method="post" action="/admin/gates/{{ gate.id }}/links/clear" style="display:inline"
+                  onsubmit="return confirm('Alle Links dieser Gate löschen? Bestehende Mail-Klicks landen dann auf 404.');">
+                <button class="btn btn-danger btn-sm">Alle Links löschen</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:20px">
+    <h3>Links ({{ links|length }})</h3>
+    {% if links %}
+    <p class="muted">Copy-paste diese in deine Mailer-Kampagnen. Jeder Klick wird auditiert (Log-Tab).</p>
+    <textarea readonly rows="{{ [links|length + 1, 12]|min }}" onclick="this.select()"
+              style="width:100%;font-family:monospace;font-size:11px">{% for l in links %}https://{{ gate.hostname }}/go/{{ l.slug }}
+{% endfor %}</textarea>
+
+    <table style="font-size:11px;margin-top:8px">
+        <thead><tr><th>Slug</th><th>Ziel-Override</th><th>Label</th><th>Hits</th></tr></thead>
+        <tbody>
+        {% for l in links[:100] %}
+        <tr>
+            <td style="font-family:monospace">{{ l.slug }}</td>
+            <td style="font-family:monospace;font-size:10px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                title="{{ l.target_override or '(gate default)' }}">
+                {{ l.target_override or '—' }}
+            </td>
+            <td>{{ l.label }}</td>
+            <td>{{ l.hits }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Noch keine Links generiert.</p>
+    {% endif %}
+</div>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+{% endblock %}

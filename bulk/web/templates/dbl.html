@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% set active = "dbl" %}
+{% block content %}
+<div class="page-header">
+    <h1>DBL Watcher</h1>
+    <span class="muted" style="font-size:12px">
+        Beobachtet Domains auf Spamhaus DBL / SURBL / URIBL · Alert via Telegram
+    </span>
+</div>
+
+{% if request.query_params.get('saved') %}
+<div class="card" style="background:var(--green-bg);border-left:3px solid var(--green);padding:8px 12px;margin-bottom:10px;font-size:12px">
+    Einstellungen gespeichert.
+</div>
+{% endif %}
+{% if request.query_params.get('ran') %}
+<div class="card" style="background:var(--accent-bg);border-left:3px solid var(--accent);padding:8px 12px;margin-bottom:10px;font-size:12px">
+    Manueller Durchlauf: {{ request.query_params.get('checked') }} geprüft, {{ request.query_params.get('new') }} neu gelistet.
+</div>
+{% endif %}
+{% if request.query_params.get('added') %}
+<div class="card" style="background:var(--accent-bg);padding:8px 12px;margin-bottom:10px;font-size:12px">
+    {{ request.query_params.get('added') }} hinzugefügt, {{ request.query_params.get('skipped', '0') }} übersprungen.
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
+    <!-- Linke Spalte: Watchlist + Add -->
+    <div>
+        <div class="card" style="margin-bottom:10px;padding:10px 12px">
+            <strong style="font-size:13px">&#43; Domains hinzufügen</strong>
+            <form method="post" action="/dbl/add" style="margin-top:6px">
+                <textarea name="domains" rows="3" placeholder="example.com&#10;foo.de,bar.io"
+                          style="width:100%;font-family:monospace;font-size:12px;box-sizing:border-box"></textarea>
+                <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+                    <button type="submit" class="btn btn-primary btn-sm">Hinzufügen</button>
+                    <span class="muted" style="font-size:11px">
+                        Komma oder Zeilenumbruch getrennt. Nackte Hostnames, keine URLs.
+                    </span>
+                </div>
+            </form>
+        </div>
+
+        <div class="card" style="padding:10px 12px;margin-bottom:10px">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;align-items:center">
+                <strong>Status:</strong>
+                <span>&#9733; Gesamt: <b>{{ stats.total }}</b></span>
+                <span class="v-block">&#128680; Gelistet: <b>{{ stats.listed }}</b></span>
+                <span class="v-allow">&#10003; Clean: <b>{{ stats.ok }}</b></span>
+                <span class="v-warn">&#9888; Fehler: <b>{{ stats.error }}</b></span>
+                <span>&#9203; Pending: <b>{{ stats.pending }}</b></span>
+                <div style="flex:1"></div>
+                <form method="post" action="/dbl/recheck-all" style="margin:0"
+                      onsubmit="return confirm('Alle Domains jetzt prüfen? Kann je nach Anzahl ein paar Sekunden dauern.');">
+                    <button type="submit" class="btn btn-secondary btn-sm">&#8635; Alle jetzt prüfen</button>
+                </form>
+            </div>
+            {% if settings.last_run_at %}
+            <div class="muted" style="font-size:11px;margin-top:4px">
+                Letzter automatischer Durchlauf: <code>{{ settings.last_run_at }}</code>
+                {% if last_summary %} · {{ last_summary.checked }} geprüft,
+                {{ last_summary.newly_listed|length }} neu gelistet,
+                {{ last_summary.recovered|length }} wieder clean{% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        {% if watches %}
+        <table style="font-size:12px">
+            <thead>
+                <tr>
+                    <th style="width:30%">Domain</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                    <th>Letzter Check</th>
+                    <th>Gelistet seit</th>
+                    <th style="width:170px"></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for w in watches %}
+                {% include "_dbl_row.html" %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="card">
+            <p class="muted">Noch keine Domains eingetragen.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Rechte Spalte: Settings -->
+    <div>
+        <div class="card" style="padding:10px 12px">
+            <strong style="font-size:13px">&#9881; Einstellungen</strong>
+            <form method="post" action="/dbl/settings" style="margin-top:8px">
+                <label style="display:flex;align-items:center;gap:6px;margin:4px 0;font-size:12px">
+                    <input type="checkbox" name="enabled" value="1" {% if settings.enabled %}checked{% endif %}
+                           style="margin:0">
+                    Scheduler aktiv (automatische Prüfung im Hintergrund)
+                </label>
+
+                <label style="display:block;font-size:11px;margin-top:6px">
+                    Prüf-Intervall (Minuten)
+                    <input type="number" name="check_interval_minutes" min="1" max="1440"
+                           value="{{ settings.check_interval_minutes or 60 }}"
+                           style="width:100%;box-sizing:border-box;font-size:12px">
+                </label>
+
+                <label style="display:block;font-size:11px;margin-top:6px">
+                    Erneut benachrichtigen nach (Stunden)
+                    <input type="number" name="renotify_hours" min="1" max="720"
+                           value="{{ settings.renotify_hours or 24 }}"
+                           style="width:100%;box-sizing:border-box;font-size:12px">
+                </label>
+
+                <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-light)">
+                    <strong style="font-size:11px">Blocklisten</strong>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:4px 0">
+                        <input type="checkbox" name="check_dbl" value="1"
+                               {% if settings.check_dbl %}checked{% endif %} style="margin:0">
+                        Spamhaus DBL
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:4px 0">
+                        <input type="checkbox" name="check_surbl" value="1"
+                               {% if settings.check_surbl %}checked{% endif %} style="margin:0">
+                        SURBL (multi.surbl.org)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:4px 0">
+                        <input type="checkbox" name="check_uribl" value="1"
+                               {% if settings.check_uribl %}checked{% endif %} style="margin:0">
+                        URIBL (multi.uribl.com)
+                    </label>
+                </div>
+
+                <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-light)">
+                    <strong style="font-size:11px">DNS-Resolver</strong>
+                    <label style="display:block;font-size:11px;margin-top:4px">
+                        Custom-Resolver (optional, komma-separiert)
+                        <input type="text" name="resolvers"
+                               value="{{ settings.resolvers or '' }}"
+                               placeholder="z.B. 9.9.9.9 oder 192.168.1.1"
+                               style="width:100%;box-sizing:border-box;font-size:12px;font-family:monospace">
+                    </label>
+                    <div class="muted" style="font-size:10px;margin-top:2px">
+                        Leer = System-Default. Spamhaus blockiert Queries über 8.8.8.8 / 1.1.1.1 — nutz einen eigenen rekursiven Resolver oder trag einen DQS-Key ein.
+                    </div>
+                </div>
+
+                <label style="display:block;font-size:11px;margin-top:6px">
+                    Spamhaus DQS-Key (optional)
+                    <input type="text" name="dqs_key"
+                           value="{{ settings.dqs_key or '' }}"
+                           placeholder="von spamhaus.com/product/data-query-service"
+                           style="width:100%;box-sizing:border-box;font-size:12px;font-family:monospace">
+                </label>
+
+                <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-light)">
+                    <strong style="font-size:11px">Telegram-Alerts</strong>
+                    <label style="display:block;font-size:11px;margin-top:4px">
+                        Bot-Token
+                        <input type="text" name="telegram_bot_token"
+                               value="{{ settings.telegram_bot_token or '' }}"
+                               placeholder="123456:ABC..."
+                               style="width:100%;box-sizing:border-box;font-size:12px;font-family:monospace">
+                    </label>
+                    <label style="display:block;font-size:11px;margin-top:4px">
+                        Chat-ID
+                        <input type="text" name="telegram_chat_id"
+                               value="{{ settings.telegram_chat_id or '' }}"
+                               placeholder="z.B. -1001234567890 oder dein User-ID"
+                               style="width:100%;box-sizing:border-box;font-size:12px;font-family:monospace">
+                    </label>
+                    <button type="button" class="btn btn-secondary btn-xs" style="margin-top:4px"
+                            hx-post="/dbl/test-telegram" hx-target="#tg-test" hx-swap="innerHTML">
+                        Test-Nachricht senden
+                    </button>
+                    <span id="tg-test" style="font-size:11px;margin-left:6px"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-sm" style="margin-top:12px;width:100%">
+                    Speichern
+                </button>
+            </form>
+        </div>
+
+        <div class="card" style="padding:10px 12px;margin-top:10px">
+            <strong style="font-size:13px">&#128269; Ad-hoc-Check</strong>
+            <p class="muted" style="font-size:11px;margin:4px 0">
+                Prüft eine Domain einmalig gegen die aktivierten Listen ohne sie zu speichern.
+            </p>
+            <form hx-post="/dbl/test-check" hx-target="#test-result" hx-swap="innerHTML"
+                  style="display:flex;gap:4px">
+                <input type="text" name="test_domain" placeholder="example.com"
+                       style="flex:1;font-size:12px;font-family:monospace">
+                <button type="submit" class="btn btn-secondary btn-sm">Check</button>
+            </form>
+            <div id="test-result" style="margin-top:6px;font-size:12px"></div>
+        </div>
+
+        <div class="card" style="padding:10px 12px;margin-top:10px;font-size:11px">
+            <strong style="font-size:12px">&#8505; Resolver-Hinweis</strong>
+            <p style="margin:4px 0" class="muted">
+                Spamhaus retourniert <code>127.0.1.255</code> bei Queries über
+                Public-DNS (Google, Cloudflare, Quad9 etc.). Dann steht hier
+                "QUERY REFUSED". Lösungen:
+            </p>
+            <ol style="padding-left:16px;margin:4px 0">
+                <li>Lokalen rekursiven Resolver installieren (unbound, bind9) und als Resolver eintragen.</li>
+                <li>Oder kostenlosen <a href="https://www.spamhaus.com/product/data-query-service/" target="_blank">DQS-Key</a> holen (bis 100k Queries/Tag gratis).</li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}

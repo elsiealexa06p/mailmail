@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Mailer{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            {% set u = request.state.user %}
+            {% if u and u.logo_path %}
+            <a href="/profile" style="display:block;margin-bottom:10px;text-align:center">
+                <img src="{{ u.logo_path }}" alt="Logo"
+                     style="max-width:140px;max-height:50px;object-fit:contain">
+            </a>
+            {% else %}
+            <h2>Bulk Mailer</h2>
+            {% endif %}
+            {% if u and u.display_name %}
+            <small>{{ u.display_name }}</small>
+            {% else %}
+            <small>Campaign Manager</small>
+            {% endif %}
+        </div>
+
+        <div class="sidebar-section">Campaigns</div>
+        <a href="/mailings" class="{{ 'active' if active == 'mailings' }}">
+            <span class="nav-icon">&#9654;</span><span>Mailings</span>
+        </a>
+
+        <div class="sidebar-section">Setup</div>
+        <a href="/brands" class="{{ 'active' if active == 'brands' }}">
+            <span class="nav-icon">&#9733;</span><span>Brands</span>
+        </a>
+        <a href="/smtp" class="{{ 'active' if active == 'smtp' }}">
+            <span class="nav-icon">&#9993;</span><span>SMTP</span>
+        </a>
+        <a href="/lists" class="{{ 'active' if active == 'lists' }}">
+            <span class="nav-icon">&#9776;</span><span>Lists</span>
+        </a>
+
+        <div class="sidebar-section">Content</div>
+        <a href="/composer" class="{{ 'active' if active == 'composer' }}">
+            <span class="nav-icon">&#9998;</span><span>Composer</span>
+        </a>
+        <a href="/macros" class="{{ 'active' if active == 'macros' }}">
+            <span class="nav-icon">{x}</span><span>Macros</span>
+        </a>
+        <a href="/preview" class="{{ 'active' if active == 'preview' }}">
+            <span class="nav-icon">&#128065;</span><span>Preview</span>
+        </a>
+        <a href="/cloudinary" class="{{ 'active' if active == 'cloudinary' }}">
+            <span class="nav-icon">&#9729;</span><span>Cloudinary</span>
+        </a>
+        <a href="/s3-logo" class="{{ 'active' if active == 's3_logo' }}">
+            <span class="nav-icon">&#128230;</span><span>AWS S3 Logo</span>
+        </a>
+        <a href="/pdf-variator" class="{{ 'active' if active == 'pdf_variator' }}">
+            <span class="nav-icon">&#128196;</span><span>PDF Variator</span>
+        </a>
+
+        <div class="sidebar-section">Infrastructure</div>
+        <a href="/fast-deploy" class="{{ 'active' if active == 'fast_deploy' }}" style="font-weight:600;color:var(--accent)">
+            <span class="nav-icon">&#9889;</span><span>Fast Deploy</span>
+        </a>
+        <a href="/domains" class="{{ 'active' if active == 'domains' }}">
+            <span class="nav-icon">&#127760;</span><span>Domains (Dynadot)</span>
+        </a>
+        <a href="/spaceship" class="{{ 'active' if active == 'spaceship' }}">
+            <span class="nav-icon">&#128760;</span><span>Spaceship</span>
+        </a>
+        <a href="/porkbun" class="{{ 'active' if active == 'porkbun' }}">
+            <span class="nav-icon">&#128055;</span><span>Porkbun</span>
+        </a>
+        <a href="/dns" class="{{ 'active' if active == 'dns' }}">
+            <span class="nav-icon">&#9881;</span><span>DNS</span>
+        </a>
+        <a href="/cloudflare" class="{{ 'active' if active == 'cloudflare' }}">
+            <span class="nav-icon">&#9729;</span><span>Cloudflare</span>
+        </a>
+        <a href="/logs" class="{{ 'active' if active == 'logs' }}">
+            <span class="nav-icon">&#9776;</span><span>Logs</span>
+        </a>
+
+        <div class="sidebar-section">Deliverability</div>
+        <a href="/warmup" class="{{ 'active' if active == 'warmup' }}">
+            <span class="nav-icon">&#9832;</span><span>Warmup</span>
+        </a>
+        <a href="/expurgate" class="{{ 'active' if active == 'expurgate' }}">
+            <span class="nav-icon">&#9986;</span><span>Expurgate Filter</span>
+        </a>
+        <a href="/dbl" class="{{ 'active' if active == 'dbl' }}">
+            <span class="nav-icon">&#128680;</span><span>DBL Watcher</span>
+        </a>
+
+        <div class="sidebar-section">Help</div>
+        <a href="/help" class="{{ 'active' if active == 'help' }}">
+            <span class="nav-icon">?</span><span>Macro Ref</span>
+        </a>
+
+        <div style="flex:1"></div>
+        <div style="border-top:1px solid var(--border-light);padding:10px 12px">
+            <a href="/profile" class="{{ 'active' if active == 'profile' }}" style="font-size:12px">
+                <span class="nav-icon">&#9881;</span><span>Profile</span>
+            </a>
+            <a href="/logout" style="font-size:12px;color:var(--red)">
+                <span class="nav-icon">&#10140;</span><span>Logout</span>
+            </a>
+        </div>
+    </nav>
+    <div class="main">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+    function showTab(container, tabId) {
+        const wrap = typeof container === 'string' ? document.getElementById(container) : (container.closest('.card') || container.closest('.tab-wrap') || container.closest('details') || container.closest('.details-body'));
+        if (!wrap) return;
+        wrap.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        wrap.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        const tab = document.getElementById(tabId);
+        if (tab) tab.classList.add('active');
+        if (event && event.target) event.target.classList.add('active');
+    }
+    </script>
+</body>
+</html>

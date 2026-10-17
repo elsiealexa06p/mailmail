@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %} — AWS S3 Logo{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>AWS S3 Logo Uploader</h1>
+    <span class="muted" style="font-size:12px">
+        Pro Batch neuer Bucket · pixel-getweakte Varianten · Direct-URLs
+    </span>
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <div class="card-header"><h3>AWS Credentials</h3></div>
+        <form method="post" action="/s3-logo/config">
+            <label>Access Key ID</label>
+            <input name="access_key" value="{{ cfg.access_key }}"
+                   placeholder="AKIA...">
+            <label>Secret Access Key</label>
+            <input name="secret_key" type="password" value="{{ cfg.secret_key }}"
+                   placeholder="••••••••••••••••••••">
+            <div class="form-row" style="margin-top:8px">
+                <div>
+                    <label>Region</label>
+                    <select name="region" style="width:100%">
+                        {% set regions = ['us-east-1','us-east-2','us-west-1','us-west-2',
+                                          'eu-west-1','eu-west-2','eu-west-3','eu-central-1','eu-central-2',
+                                          'eu-north-1','eu-south-1','eu-south-2',
+                                          'ap-south-1','ap-southeast-1','ap-southeast-2','ap-northeast-1',
+                                          'ca-central-1','sa-east-1'] %}
+                        {% for r in regions %}
+                        <option value="{{ r }}" {% if cfg.region == r %}selected{% endif %}>{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Bucket-Prefix (optional)</label>
+                    <input name="bucket_prefix" value="{{ cfg.bucket_prefix }}"
+                           placeholder="z.B. assets">
+                </div>
+            </div>
+            <div class="form-help" style="margin-top:6px">
+                Access Key eines AWS-Accounts (Root oder beliebiger User mit S3-Zugriff).
+                Prefix wird DNS-safe sanitized (lowercase, a-z/0-9/-).
+            </div>
+            <div style="margin-top:10px;display:flex;gap:6px;align-items:center">
+                <button class="btn btn-primary btn-sm">Speichern</button>
+                <button type="button" class="btn btn-secondary btn-sm"
+                        hx-post="/s3-logo/test" hx-target="#cred-test" hx-swap="innerHTML">
+                    Verbindung testen
+                </button>
+                <span id="cred-test" style="font-size:12px"></span>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h3>Logo hochladen</h3></div>
+        {% if not (cfg.access_key and cfg.secret_key) %}
+        <div class="alert alert-warning">Credentials zuerst speichern.</div>
+        {% endif %}
+        <form hx-post="/s3-logo/upload" hx-target="#up-result" hx-swap="innerHTML"
+              hx-encoding="multipart/form-data">
+            <label>Logo-Datei (PNG/JPG/WEBP)</label>
+            <input type="file" name="file" accept="image/*" required>
+
+            <div class="form-row" style="margin-top:8px">
+                <div>
+                    <label>Anzahl Kopien</label>
+                    <input name="count" type="number" value="10" min="1" max="200">
+                </div>
+                <div>
+                    <label>Basis-Name (Object-Key)</label>
+                    <input name="base_name" value="logo" placeholder="logo">
+                </div>
+            </div>
+            <div class="form-help">
+                Object-Keys werden <code>logo1_xxx.png</code>, <code>logo2_xxx.png</code>, …
+            </div>
+
+            <label style="margin-top:8px">Bucket-Prefix für diesen Batch (optional, überschreibt Default)</label>
+            <input name="bucket_prefix_override" value="" placeholder="leer = benutze gespeicherten Prefix">
+            <div class="form-help">
+                Jeder Batch bekommt einen eigenen Bucket:
+                <code>&lt;prefix&gt;-&lt;ts&gt;-&lt;rand&gt;</code> — garantiert unique weltweit.
+            </div>
+
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:8px">
+                <input type="checkbox" name="pixel_tweak" value="1" checked style="margin:0;width:auto">
+                <span>Pixel-Tweak pro Kopie (einzigartiger Datei-Hash je URL)</span>
+            </label>
+            <div class="form-help">
+                Verschiebt ein Pixel um ±1 pro Kopie — visuell identisch, aber jedes Objekt
+                hat einen anderen Byte-Inhalt und damit anderen Perceptual-Hash.
+            </div>
+
+            <div style="margin-top:10px">
+                <button class="btn btn-primary btn-sm">Upload starten</button>
+            </div>
+        </form>
+        <div id="up-result" style="margin-top:10px">
+            {% if progress.running %}
+            <div hx-get="/s3-logo/progress" hx-trigger="load, every 1s" hx-swap="outerHTML"></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if uploads %}
+<div class="card">
+    <div class="card-header"><h3>Upload-Batches</h3></div>
+    {% for u in uploads %}
+    <details {% if loop.first %}open{% endif %} style="margin-bottom:10px;border:1px solid var(--border-light);border-radius:var(--radius);background:var(--bg)">
+        <summary style="cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <span>
+                <strong><code style="font-size:12px">{{ u.bucket_name }}</code></strong>
+                <span style="color:var(--fg2);font-size:12px;margin-left:6px">
+                    {{ u.link_count }}/{{ u.count }} link(s)
+                    · <code>{{ u.region }}</code>
+                    · base <code>{{ u.base_name }}</code>
+                    {% if u.pixel_tweak %}· pixel-tweaked{% endif %}
+                </span>
+            </span>
+            <span style="display:flex;gap:6px">
+                <a href="/s3-logo/upload/{{ u.id }}/export.txt" class="btn btn-secondary btn-xs">Download .txt</a>
+                <form method="post" action="/s3-logo/upload/{{ u.id }}/delete" style="display:inline"
+                      onsubmit="return confirm('Nur den lokalen Eintrag entfernen? (Bucket + Dateien bleiben in AWS)')">
+                    <input type="hidden" name="full" value="0">
+                    <button class="btn btn-secondary btn-xs">Nur Eintrag löschen</button>
+                </form>
+                <form method="post" action="/s3-logo/upload/{{ u.id }}/delete" style="display:inline"
+                      onsubmit="return confirm('ACHTUNG: löscht Bucket + alle Objekte in AWS! Weiter?')">
+                    <input type="hidden" name="full" value="1">
+                    <button class="btn btn-danger btn-xs">+ S3-Bucket löschen</button>
+                </form>
+            </span>
+        </summary>
+        <div style="padding:10px 12px">
+            {% if u.links %}
+            <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+                <button type="button" class="btn btn-success btn-xs"
+                        onclick="(function(b){var t=b.parentElement.nextElementSibling;navigator.clipboard.writeText(t.value).then(function(){var o=b.textContent;b.textContent='Copied!';setTimeout(function(){b.textContent=o},1200)})})(this)">
+                    Alle URLs kopieren
+                </button>
+                <span style="font-size:12px;color:var(--fg2);align-self:center">
+                    {{ u.links|length }} URL{% if u.links|length != 1 %}s{% endif %} — eine pro Zeile
+                </span>
+            </div>
+            <textarea readonly rows="{{ [u.links|length, 12]|min }}"
+                      style="width:100%;font-family:monospace;font-size:12px;background:#fff"
+                      onclick="this.select()">{% for l in u.links %}{{ l.public_url }}
+{% endfor %}</textarea>
+            {% else %}
+            <p style="font-size:12px;color:var(--fg2);margin:0">
+                Noch keine Links — Upload läuft eventuell noch oder ist fehlgeschlagen.
+            </p>
+            {% endif %}
+        </div>
+    </details>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

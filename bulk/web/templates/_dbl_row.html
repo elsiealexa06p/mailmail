@@ -1,0 +1,61 @@
+{# Row partial for /dbl table — expects `w` dict with detail_parsed. #}
+<tr id="dbl-row-{{ w.id }}" {% if not w.enabled %}style="opacity:0.5"{% endif %}>
+    <td style="font-family:monospace;{% if w.status == 'listed' %}color:var(--red);font-weight:600{% endif %}">
+        {{ w.domain }}
+    </td>
+    <td>
+        {% if w.status == 'listed' %}
+            <span class="v-block">&#128680; LISTED</span>
+        {% elif w.status == 'ok' %}
+            <span class="v-allow">&#10003; clean</span>
+        {% elif w.status == 'error' %}
+            <span class="v-warn">&#9888; error</span>
+        {% else %}
+            <span class="muted">pending</span>
+        {% endif %}
+    </td>
+    <td style="font-size:11px">
+        {% if w.detail_parsed %}
+            {% for name, d in w.detail_parsed.items() %}
+                {% if d.listed %}
+                    <div><b>{{ name|upper }}</b>:
+                        <span class="v-block">
+                            {{ (d.reasons or d.codes)|join(', ') }}
+                        </span>
+                    </div>
+                {% elif d.error %}
+                    <div><b>{{ name|upper }}</b>:
+                        <span class="v-warn">err — {{ d.error }}</span>
+                    </div>
+                {% else %}
+                    <div class="muted">{{ name|upper }}: ok</div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <span class="muted">—</span>
+        {% endif %}
+    </td>
+    <td style="font-size:11px;font-family:monospace">
+        {{ w.last_checked_at or '—' }}
+    </td>
+    <td style="font-size:11px;font-family:monospace;color:var(--red)">
+        {{ w.listed_since or '' }}
+    </td>
+    <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-xs"
+                hx-post="/dbl/{{ w.id }}/recheck"
+                hx-target="#dbl-row-{{ w.id }}"
+                hx-swap="outerHTML">
+            &#8635; Check
+        </button>
+        <form method="post" action="/dbl/{{ w.id }}/toggle" style="display:inline">
+            <button class="btn btn-secondary btn-xs">
+                {% if w.enabled %}pause{% else %}aktiv{% endif %}
+            </button>
+        </form>
+        <form method="post" action="/dbl/{{ w.id }}/delete" style="display:inline"
+              onsubmit="return confirm('Löschen?');">
+            <button class="btn btn-danger btn-xs">×</button>
+        </form>
+    </td>
+</tr>

@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %} — Media Pool{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>&#127917; Media Pool</h1>
+    <span class="badge badge-info">
+        Total: {{ stats.total }} Assets
+        &nbsp;·&nbsp; CID: {{ stats.cid }}
+        &nbsp;·&nbsp; Cloudinary: {{ stats.cloudinary }}
+        &nbsp;·&nbsp; S3: {{ stats.s3 }}
+    </span>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+    <p class="muted" style="font-size:12px;margin:0">
+        Konsolidierter Wizard: eine Anzahl angeben, Verteilung wählen — der Mailer
+        baut CID-Varianten, Cloudinary-Uploads und S3-Uploads parallel. Beim
+        nächsten Kampagnenstart findet der Send-Loop alles automatisch.
+        Für Feintuning (bucket-anlegen, einzelne Uploads) bleiben
+        <a href="/cloudinary" style="color:var(--accent)">/cloudinary</a> und
+        <a href="/s3-logos" style="color:var(--accent)">/s3-logos</a> bestehen.
+    </p>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+    <h3>&#128193; Multi-Pool Übersicht (pro Logo-Gruppe)</h3>
+    <p class="muted" style="font-size:12px;margin:0 0 8px">
+        Jede Logo-Gruppe ist ein <strong>separater Media-Pool</strong>. Kampagnen mit
+        <code>logo_group_id=X</code> holen sich CID+Cloudinary+S3 <em>nur aus Group X</em>.
+        So kann eine Kampagne mit Pool A parallel zu einer Kampagne mit Pool B laufen
+        ohne dass die Assets sich mischen.
+    </p>
+    <table style="font-size:12px;width:auto">
+        <thead>
+            <tr><th>Group</th><th>CID</th><th>Cloudinary</th><th>S3</th>
+                <th>Total</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for g in groups %}
+            {% set gs = group_stats.get(g.id, {'cid':0,'cloudinary':0,'s3':0,'total':0}) %}
+            <tr>
+                <td><strong>{{ g.name }}</strong>
+                    <span style="color:var(--fg3);font-size:10px">#{{ g.id }}</span></td>
+                <td>{{ gs.cid }}</td>
+                <td>{{ gs.cloudinary }}</td>
+                <td>{{ gs.s3 }}</td>
+                <td><span class="badge {{ 'badge-info' if gs.total else '' }}">{{ gs.total }}</span></td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-xs"
+                            hx-post="/pool/clear"
+                            hx-vals='{"group_id":"{{ g.id }}"}'
+                            hx-target="#clear-result" hx-swap="innerHTML"
+                            hx-confirm="Pool „{{ g.name }}" komplett leeren?">
+                        &#10005; leeren
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+            {% set gs0 = group_stats.get(0, {'cid':0,'cloudinary':0,'s3':0,'total':0}) %}
+            <tr style="border-top:2px solid var(--border)">
+                <td><em style="color:var(--fg2)">— global / ohne Group</em></td>
+                <td>{{ gs0.cid }}</td>
+                <td>{{ gs0.cloudinary }}</td>
+                <td>{{ gs0.s3 }}</td>
+                <td><span class="badge {{ 'badge-info' if gs0.total else '' }}">{{ gs0.total }}</span></td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-xs"
+                            hx-post="/pool/clear"
+                            hx-vals='{"group_id":"0"}'
+                            hx-target="#clear-result" hx-swap="innerHTML"
+                            hx-confirm="Nur globalen Pool (ohne Group-Zuordnung) leeren?">
+                        &#10005; leeren
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div style="margin-top:8px;font-size:11px">
+        <button type="button" class="btn btn-danger btn-xs"
+                hx-post="/pool/clear" hx-vals='{"group_id":"-1"}'
+                hx-target="#clear-result" hx-swap="innerHTML"
+                hx-confirm="ALLE Pools über ALLE Groups leeren?">
+            &#10005; komplett alles leeren (alle Groups)
+        </button>
+        {% if not groups %}
+        <span style="color:var(--fg2);margin-left:10px">
+            &#9432; Für Multi-Pool: unter <a href="/logos" style="color:var(--accent)">/logos</a>
+            Logo-Gruppen anlegen (eine pro Kampagne).
+        </span>
+        {% endif %}
+    </div>
+    <div id="clear-result" style="margin-top:8px"></div>
+</div>
+
+<div class="card" style="border:2px solid var(--accent)">
+    <h3>&#128736; Pool aufbauen (One-Click Wizard)</h3>
+    {% if not logos %}
+    <div class="alert alert-warning">
+        Keine Source-Logos vorhanden. Erst welche unter
+        <a href="/logos" style="color:var(--accent);font-weight:600">/logos</a> hochladen.
+    </div>
+    {% else %}
+    <form hx-post="/pool/build" hx-target="#build-result" hx-swap="innerHTML">
+        <div class="grid-2">
+            <div>
+                <label>Source-Logo(s)</label>
+                <div style="display:flex;gap:12px;margin:4px 0 8px;font-size:12px">
+                    <label style="display:flex;gap:4px;align-items:center;font-weight:400;cursor:pointer">
+                        <input type="radio" name="source_mode" value="all" checked style="width:auto"
+                               onchange="document.getElementById('sg').style.display='none';document.getElementById('sl').style.display='none'">
+                        <span>Alle ({{ logos|length }})</span>
+                    </label>
+                    <label style="display:flex;gap:4px;align-items:center;font-weight:400;cursor:pointer">
+                        <input type="radio" name="source_mode" value="group" style="width:auto"
+                               onchange="document.getElementById('sg').style.display='block';document.getElementById('sl').style.display='none'">
+                        <span>Logo-Gruppe</span>
+                    </label>
+                    <label style="display:flex;gap:4px;align-items:center;font-weight:400;cursor:pointer">
+                        <input type="radio" name="source_mode" value="logos" style="width:auto"
+                               onchange="document.getElementById('sg').style.display='none';document.getElementById('sl').style.display='block'">
+                        <span>Einzelne Logos</span>
+                    </label>
+                </div>
+
+                <div id="sg" style="display:none">
+                    <select name="group_id">
+                        <option value="0">— keine —</option>
+                        {% for g in groups %}
+                        <option value="{{ g.id }}">{{ g.name }} ({{ g.logo_count }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="sl" style="display:none">
+                    <select multiple name="_multi" size="6"
+                            onchange="this.form.logo_ids.value=Array.from(this.selectedOptions).map(o=>o.value).join(',')">
+                        {% for l in logos %}
+                        <option value="{{ l.id }}">{{ l.filename }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="logo_ids" value="">
+                    <div class="form-help">Ctrl/Cmd+Click für Mehrfach-Selektion.</div>
+                </div>
+
+                <label style="margin-top:12px">Ziel-Group für CID-Varianten</label>
+                <select name="target_group_id">
+                    <option value="0">— auto (folgt der Source-Group) —</option>
+                    {% for g in groups %}
+                    <option value="{{ g.id }}">{{ g.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-help">
+                    <strong>auto</strong> (Default): wenn Source aus einer Group kommt,
+                    landen die CID-Varianten automatisch in derselben Group — dann findet
+                    die Kampagne mit <code>logo_group_id=X</code> sie sofort.<br>
+                    Nur ändern wenn du bewusst Source aus Group A in Group B ablegen willst.
+                </div>
+            </div>
+
+            <div>
+                <label>Total Varianten</label>
+                <input name="total_variants" type="number" value="100" min="1" max="5000">
+                <div class="form-help">Wird nach den % unten auf CID/Cloudinary/S3 aufgeteilt.</div>
+
+                <label style="margin-top:12px">Verteilung (%)</label>
+                <div style="display:flex;gap:8px;align-items:center;font-size:12px">
+                    <label style="display:flex;flex-direction:column;flex:1">
+                        <span style="color:var(--fg2)">CID (Inline)</span>
+                        <input name="pct_cid" type="number" value="34" min="0" max="100" style="text-align:center">
+                    </label>
+                    <label style="display:flex;flex-direction:column;flex:1">
+                        <span style="color:var(--fg2)">Cloudinary</span>
+                        <input name="pct_cloudinary" type="number" value="33" min="0" max="100" style="text-align:center">
+                    </label>
+                    <label style="display:flex;flex-direction:column;flex:1">
+                        <span style="color:var(--fg2)">S3</span>
+                        <input name="pct_s3" type="number" value="33" min="0" max="100" style="text-align:center">
+                    </label>
+                </div>
+                <div class="form-help">
+                    Beispiele: 34/33/33 = balanciert · 100/0/0 = nur CID (keine externen requests) ·
+                    0/50/50 = nur CDN (keine großen Mail-Anhänge)
+                </div>
+
+                <label style="margin-top:12px">Cloudinary Proxy (nur wenn Cloudinary-% > 0)</label>
+                <select name="cloudinary_proxy_id">
+                    <option value="0">— nicht nutzen —</option>
+                    {% for p in proxies %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.proxy_type }})</option>
+                    {% endfor %}
+                </select>
+                {% if not cloudinary_ready %}
+                <div class="form-help" style="color:var(--orange, #d80)">
+                    &#9888; Cloudinary-Credentials fehlen — Cloudinary-% auf 0 setzen oder
+                    <a href="/cloudinary" style="color:var(--accent)">unter /cloudinary</a> speichern.
+                </div>
+                {% endif %}
+
+                <label style="margin-top:12px">S3 Account (nur wenn S3-% > 0)</label>
+                <select name="s3_account_id">
+                    <option value="0">— nicht nutzen —</option>
+                    {% for a in s3_accounts %}
+                    <option value="{{ a.id }}">{{ a.name }}</option>
+                    {% endfor %}
+                </select>
+                {% if not s3_accounts %}
+                <div class="form-help" style="color:var(--orange, #d80)">
+                    &#9888; Kein S3-Account — S3-% auf 0 setzen oder
+                    <a href="/redirects" style="color:var(--accent)">/redirects</a> anlegen +
+                    <a href="/s3-logos" style="color:var(--accent)">/s3-logos</a> Buckets bauen.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="margin-top:14px">
+            <button class="btn btn-primary btn-sm">Pool bauen</button>
+        </div>
+    </form>
+    <div id="build-result" style="margin-top:12px"></div>
+    {% endif %}
+</div>
+{% endblock %}

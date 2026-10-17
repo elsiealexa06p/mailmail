@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %} — Lead Pools{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Lead Pools</h1></div>
+
+<div class="card">
+    <div class="card-header"><h3>Pools <span class="count">{{ pools|length }}</span></h3></div>
+    {% if pools %}
+    {% for p in pools %}
+    <details>
+        <summary>
+            <strong>{{ p.name }}</strong>
+            <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                <span class="badge badge-info">{{ "{:,}".format(p.stats.total) }} total</span>
+                <span class="badge badge-running">{{ "{:,}".format(p.stats.pending) }} available</span>
+                <span class="badge badge-draft">{{ "{:,}".format(p.stats.used) }} used</span>
+                {% if p.stats.sent %}<span class="badge badge-finished">{{ "{:,}".format(p.stats.sent) }} sent</span>{% endif %}
+            </span>
+        </summary>
+        <div class="details-body" style="padding-top:12px">
+            <div class="grid-4" style="margin-bottom:12px">
+                <div class="metric"><div class="value">{{ "{:,}".format(p.stats.total) }}</div><div class="label">Total</div></div>
+                <div class="metric"><div class="value" style="color:var(--green)">{{ "{:,}".format(p.stats.pending) }}</div><div class="label">Available</div></div>
+                <div class="metric"><div class="value">{{ "{:,}".format(p.stats.used) }}</div><div class="label">Used</div></div>
+                <div class="metric"><div class="value">{{ "{:,}".format(p.stats.sent) }}</div><div class="label">Sent</div></div>
+            </div>
+
+            <div class="grid-2" style="align-items:start">
+                <div>
+                    <form hx-post="/pools/{{ p.id }}/import-text" hx-target="#pool-result-{{ p.id }}" hx-swap="innerHTML">
+                        <label>Add Leads</label>
+                        <textarea name="leads_text" rows="5" placeholder="user1@example.com&#10;user2@example.com" style="font-family:monospace;font-size:12px"></textarea>
+                        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;font-size:13px">
+                            <input type="checkbox" name="skip_dedup" value="1" style="width:auto">
+                            <span>Skip duplicate check (faster for large imports)</span>
+                        </label>
+                        <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Import</button></div>
+                    </form>
+                    <div id="pool-result-{{ p.id }}" style="margin-top:8px"></div>
+                </div>
+                <div>
+                    <form method="post" action="/pools/{{ p.id }}/upload" enctype="multipart/form-data">
+                        <label>Upload Lead Files</label>
+                        <input type="file" name="files" multiple accept=".txt,.csv" required>
+                        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;font-size:13px">
+                            <input type="checkbox" name="skip_dedup" value="1" style="width:auto">
+                            <span>Skip duplicate check</span>
+                        </label>
+                        <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Upload</button></div>
+                    </form>
+                    <div class="divider"></div>
+                    <div class="btn-group" style="flex-wrap:wrap">
+                        <form method="post" action="/pools/{{ p.id }}/reset" onsubmit="return confirm('Reset USED back to PENDING?')">
+                            <button class="btn btn-secondary btn-sm">Reset Used → Pending</button>
+                        </form>
+                        <form method="post" action="/pools/{{ p.id }}/reset-all" onsubmit="return confirm('Reset ALL leads (including sent/failed)?')">
+                            <button class="btn btn-secondary btn-sm">Reset All → Pending</button>
+                        </form>
+                        <form method="post" action="/pools/{{ p.id }}/delete" onsubmit="return confirm('Delete entire pool?')">
+                            <button class="btn btn-danger btn-sm">Delete Pool</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </details>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state"><p>No lead pools. Create one below.</p></div>
+    {% endif %}
+</div>
+
+<details {{ 'open' if not pools }}>
+    <summary>Create Lead Pool</summary>
+    <div class="details-body" style="padding-top:12px">
+        <form method="post" action="/pools/create">
+            <label>Pool Name</label>
+            <input name="name" placeholder="e.g. Master Pool 1M" required>
+            <div class="form-help">A pool is a reusable lead list. Leads are marked as "used" after sending but never deleted. Import new leads anytime — duplicates are skipped and new ones are shuffled in between available leads.</div>
+            <div style="margin-top:12px"><button class="btn btn-primary">Create Pool</button></div>
+        </form>
+    </div>
+</details>
+
+<div class="card" style="margin-top:16px">
+    <h3>How Pools Work</h3>
+    <table style="font-size:13px">
+        <thead><tr><th>State</th><th>Meaning</th></tr></thead>
+        <tbody>
+            <tr><td><span class="badge badge-running">PENDING</span></td><td>Available for the next campaign</td></tr>
+            <tr><td><span class="badge badge-draft">USED</span></td><td>Reserved/taken by a campaign, not yet sent</td></tr>
+            <tr><td><span class="badge badge-finished">SENT</span></td><td>Successfully sent</td></tr>
+            <tr><td><span class="badge badge-failed">FAILED</span></td><td>Send attempt failed</td></tr>
+        </tbody>
+    </table>
+    <div class="form-help" style="margin-top:8px">
+        When you select a pool in a campaign with e.g. 10,000 leads, the next 10k available (PENDING) leads
+        are reserved. After the mailing, "Reset Used" makes them available again, or they stay marked so
+        you know which leads have been contacted.
+    </div>
+</div>
+{% endblock %}

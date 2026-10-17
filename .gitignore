@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.log
+.env
+smtps.txt
+leads.txt
+html_bodies/*
+!html_bodies/.gitkeep
+attachments/*
+!attachments/.gitkeep
+spintaxes/*
+!spintaxes/.gitkeep
+logos/*
+!logos/.gitkeep
+image_pool.json

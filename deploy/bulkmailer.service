@@ -1,0 +1,15 @@
+[Unit]
+Description=Bulk Mailer Web UI
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/mailer/mailer
+ExecStart=/home/mailer/mailer/venv/bin/python -m uvicorn bulk.web.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

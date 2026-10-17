@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %} — Settings{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Settings & Logs</h1></div>
+
+<div class="card tab-wrap">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('settings-tabs', 'tab-log')">SMTP Error Log</button>
+        <button class="tab-btn" onclick="showTab('settings-tabs', 'tab-global')">Global Config</button>
+    </div>
+    <div id="settings-tabs">
+        <div id="tab-log" class="tab-content active">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+                <button class="btn btn-secondary btn-sm" hx-get="/settings/log" hx-target="#log-box" hx-swap="innerHTML">Refresh</button>
+                <form method="post" action="/settings/log/clear" onsubmit="return confirm('Clear log?')">
+                    <button class="btn btn-danger btn-sm">Clear</button>
+                </form>
+            </div>
+            <div id="log-box" hx-get="/settings/log" hx-trigger="every 10s" hx-swap="innerHTML">
+                <pre class="log">{{ log_text }}</pre>
+            </div>
+        </div>
+
+        <div id="tab-global" class="tab-content">
+            <form method="post" action="/settings/save" style="max-width:500px">
+                <label>Cloudinary Cloud Name</label>
+                <input name="cloudinary_cloud_name" value="{{ config.get('cloudinary_cloud_name', '') }}">
+                <label>Cloudinary API Key</label>
+                <input name="cloudinary_api_key" value="{{ config.get('cloudinary_api_key', '') }}">
+                <label>Cloudinary API Secret</label>
+                <input name="cloudinary_api_secret" type="password" value="{{ config.get('cloudinary_api_secret', '') }}">
+                <label>MXToolbox API Key</label>
+                <input name="mxtoolbox_api_key" value="{{ config.get('mxtoolbox_api_key', '') }}" placeholder="For blacklist checking">
+                <div style="margin-top:16px"><button class="btn btn-primary">Save</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

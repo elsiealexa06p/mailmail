@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %} — Macros{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Macros</h1></div>
+
+<div class="card">
+    <div class="card-header"><h3>All Macros</h3></div>
+    {% if grouped %}
+    {% for macro_name, presets in grouped.items() %}
+    <details>
+        <summary>
+            <code style="color:var(--accent);font-weight:600">{{"{"}}{{ macro_name }}{{"}"}}</code>
+            <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                <span class="count">{{ presets|length }} preset{{ 's' if presets|length != 1 }}</span>
+                {% for p in presets %}{% if p.is_active %}<span class="badge badge-running">{{ p.preset_name or 'Default' }}</span>{% endif %}{% endfor %}
+            </span>
+        </summary>
+        <div class="details-body" style="padding-top:12px">
+            {% for p in presets %}
+            <div style="border:1px solid {{ 'var(--green)' if p.is_active else 'var(--border-light)' }};border-radius:var(--radius);padding:12px;margin-bottom:8px;{{ 'background:#f0faf0' if p.is_active else '' }}">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <span style="font-weight:600;font-size:14px">
+                        {{ p.preset_name or 'Default' }}
+                        {% if p.is_active %}<span class="badge badge-running" style="margin-left:6px">active</span>{% endif %}
+                    </span>
+                    <div style="display:flex;gap:6px">
+                        {% if not p.is_active %}
+                        <form method="post" action="/macros/{{ p.id }}/activate" style="display:inline">
+                            <button class="btn btn-success btn-xs">Activate</button>
+                        </form>
+                        {% endif %}
+                        <form method="post" action="/macros/{{ p.id }}/duplicate" style="display:inline">
+                            <input type="hidden" name="new_preset_name" value="{{ p.preset_name or 'Default' }} Copy">
+                            <button class="btn btn-secondary btn-xs">Duplicate</button>
+                        </form>
+                        <form method="post" action="/macros/{{ p.id }}/delete" onsubmit="return confirm('Delete this preset?')" style="display:inline">
+                            <button class="btn btn-danger btn-xs">Delete</button>
+                        </form>
+                    </div>
+                </div>
+                <form method="post" action="/macros/{{ p.id }}/save">
+                    <div class="grid-2" style="margin-bottom:8px">
+                        <div>
+                            <label>Preset Name</label>
+                            <input name="preset_name" value="{{ p.preset_name or 'Default' }}" style="font-size:13px">
+                        </div>
+                        <div>
+                            <label>Rotate Every N</label>
+                            <input name="rotate_every" type="number" value="{{ p.rotate_every or 0 }}" min="0">
+                        </div>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;margin-bottom:8px">
+                        <input type="checkbox" name="sticky" value="1" style="width:auto"
+                               {{ 'checked' if p.sticky }}>
+                        <span style="font-size:13px">Sticky — <strong>gleicher Wert pro Mail</strong> für alle Vorkommen (From + Signatur konsistent)</span>
+                    </label>
+                    <label>Values (one per line) — {{ p.line_count }} entries</label>
+                    <textarea id="macro-ta-{{ p.id }}" name="values_text" rows="{{ [p.line_count + 1, 3]|max }}" style="font-family:monospace;font-size:12px">{{ p.values_text }}</textarea>
+                    <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+                        <button class="btn btn-primary btn-xs">Save</button>
+                        <button type="button" class="btn btn-secondary btn-xs" onclick="let t=document.getElementById('macro-ta-{{ p.id }}');t.select();document.execCommand('copy')">Copy All</button>
+                        <button type="button" class="btn btn-secondary btn-xs" onclick="document.getElementById('macro-ta-{{ p.id }}').select()">Select All</button>
+                        <button type="button" class="btn btn-secondary btn-xs" onclick="document.getElementById('macro-ta-{{ p.id }}').value=''">Clear</button>
+                    </div>
+                </form>
+            </div>
+            {% endfor %}
+            <form method="post" action="/macros/add-preset" style="display:flex;gap:8px;align-items:flex-end;margin-top:8px;padding:8px;background:#f8f9fa;border-radius:4px">
+                <input type="hidden" name="macro_name" value="{{ macro_name }}">
+                <div style="flex:1">
+                    <label style="font-size:12px">New Preset</label>
+                    <input name="preset_name" placeholder="z.B. Version B, Weihnachten" required style="font-size:13px">
+                </div>
+                <button class="btn btn-secondary btn-xs">Add Preset</button>
+            </form>
+        </div>
+    </details>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state"><div class="icon">{x}</div><p>No macros. Add or import below.</p></div>
+    {% endif %}
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <details open>
+        <summary>Add Macro</summary>
+        <div class="details-body" style="padding-top:12px">
+            <form method="post" action="/macros/add">
+                <div class="grid-2">
+                    <div>
+                        <label>Macro Name</label>
+                        <input name="name" placeholder="z.B. Text, Betreffe, greeting" required>
+                    </div>
+                    <div>
+                        <label>Preset Name</label>
+                        <input name="preset_name" placeholder="z.B. Version A, Weihnachten" value="Default">
+                    </div>
+                </div>
+                <label>Values (one per line)</label>
+                <textarea name="values_text" rows="5" placeholder="Value 1&#10;Value 2&#10;Value 3"></textarea>
+                <label>Rotate Every N</label>
+                <input name="rotate_every" type="number" value="0" min="0">
+                <div style="margin-top:10px"><button class="btn btn-primary">Add Macro</button></div>
+            </form>
+        </div>
+    </details>
+
+    <details>
+        <summary>Import from .txt Files</summary>
+        <div class="details-body" style="padding-top:12px">
+            <form hx-post="/macros/import-files" hx-target="#import-result" hx-swap="innerHTML" hx-encoding="multipart/form-data">
+                <label>Select .txt Files (filename = macro name)</label>
+                <input type="file" name="files" multiple accept=".txt" required>
+                <div class="form-help">e.g. Betreffe.txt → macro {Betreffe}</div>
+                <div style="margin-top:10px"><button class="btn btn-primary btn-sm">Import All</button></div>
+            </form>
+            <div id="import-result" style="margin-top:10px"></div>
+        </div>
+    </details>
+</div>
+
+<div class="card" style="margin-top:16px">
+    <h3>Built-in Variables</h3>
+    <table>
+        <thead><tr><th>Variable</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>{email}</code></td><td>Full recipient email</td></tr>
+            <tr><td><code>{email_user}</code></td><td>Local part (before @)</td></tr>
+            <tr><td><code>{domain}</code></td><td>Domain part (after @)</td></tr>
+            <tr><td><code>{Logo}</code></td><td>Logo image tag (CID)</td></tr>
+            <tr><td><code>{RedirectLink}</code></td><td>Rotating redirect link</td></tr>
+            <tr><td><code>{AnyMacro}</code></td><td>Random line from active preset</td></tr>
+            <tr><td><code>{opt1|opt2|opt3}</code></td><td>Spintax — random pick</td></tr>
+            <tr><td><code>[RANDSTR:8:a-z:lower]</code></td><td>Random string</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

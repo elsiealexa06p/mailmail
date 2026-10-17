@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %} — Warmup{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Warmup</h1>
+</div>
+
+<div class="card tab-wrap">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('warmup-tabs', 'tab-seeds')">Seeds <span class="count">{{ seeds|length }}</span></button>
+        <button class="tab-btn" onclick="showTab('warmup-tabs', 'tab-campaigns')">Campaigns <span class="count">{{ campaigns|length }}</span></button>
+        <button class="tab-btn" onclick="showTab('warmup-tabs', 'tab-pdfs')">PDF-Pool <span class="count">{{ pdfs|length }}</span></button>
+        <button class="tab-btn" onclick="showTab('warmup-tabs', 'tab-log')">Log</button>
+        <button class="tab-btn" onclick="showTab('warmup-tabs', 'tab-llm')">LLM (optional)</button>
+    </div>
+
+    <div id="warmup-tabs">
+
+        <!-- SEEDS -->
+        <div id="tab-seeds" class="tab-content active">
+            <div class="card" style="background:#f5f6f8;margin-bottom:16px">
+                <h3>Seeds importieren (Auto-Provider-Detect)</h3>
+                <p class="muted" style="font-size:12px;margin:4px 0 8px">
+                    Format-frei — Provider wird aus der Email-Domain erkannt (Gmail / Outlook /
+                    GMX / T-Online / web.de / Yahoo / mailbox.org / posteo / freenet + Custom-Fallback).
+                    Eine Zeile pro Seed:<br>
+                    <code style="font-size:11px">email:pw</code> · <code style="font-size:11px">email:pw:imap_host</code> ·
+                    <code style="font-size:11px">email:pw:imap_host:port</code> ·
+                    <code style="font-size:11px">email:pw:imap:port:smtp:port</code> ·
+                    <code style="font-size:11px">imap:port:email:pw</code>
+                </p>
+                <form hx-post="/warmup/seeds/import" hx-target="#import-result" hx-swap="innerHTML">
+                    <textarea name="lines" rows="6" style="font-family:monospace;font-size:12px"
+                              placeholder="klaus@gmx.de:passwort123&#10;petra@t-online.de:hunter2&#10;info@custom.de:xy:imap.custom.de:993&#10;user@work.com:pw:imap.work.com:993:smtp.work.com:587"></textarea>
+                    <label style="margin-top:8px">SOCKS5-Proxy (residential, sticky) — optional, wird auf alle Seeds angewendet</label>
+                    <input name="proxy" placeholder="user:pass@host:port">
+                    <div style="margin-top:8px">
+                        <button class="btn btn-primary btn-sm">Seeds importieren</button>
+                    </div>
+                </form>
+                <div id="import-result" style="margin-top:10px"></div>
+            </div>
+
+            <!-- Provider-Übersicht -->
+            {% if seeds %}
+            <div class="grid-4" style="margin-bottom:16px">
+                {% for p in providers %}
+                <div class="metric">
+                    <div class="value" style="font-size:18px">{{ provider_counts.get(p, 0) }}</div>
+                    <div class="label">{{ p }}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div style="overflow-x:auto;margin-bottom:16px">
+            <table>
+                <thead><tr><th>Provider</th><th>Email</th><th>IMAP</th><th>Proxy</th><th>Rates</th><th>Active</th><th></th></tr></thead>
+                <tbody>
+                {% for s in seeds %}
+                <tr>
+                    <td><span class="badge badge-info">{{ s.provider }}</span></td>
+                    <td style="font-family:monospace;font-size:12px">{{ s.email }}</td>
+                    <td style="font-size:11px;color:var(--fg2)">{{ s.imap_host }}:{{ s.imap_port }}</td>
+                    <td style="font-size:11px;color:var(--fg2)">{{ s.proxy[:25] ~ '…' if s.proxy and s.proxy|length > 25 else s.proxy or '—' }}</td>
+                    <td style="font-size:11px">{{ (s.open_rate * 100)|int }}/{{ (s.click_rate * 100)|int }}/{{ (s.reply_rate * 100)|int }}</td>
+                    <td><span class="badge badge-{{ 'running' if s.is_active else 'draft' }}">{{ 'On' if s.is_active else 'Off' }}</span></td>
+                    <td>
+                        <button class="btn btn-secondary btn-xs"
+                                hx-post="/warmup/seeds/{{ s.id }}/test"
+                                hx-target="#seed-test-{{ s.id }}"
+                                hx-swap="innerHTML">Test</button>
+                        <form method="post" action="/warmup/seeds/{{ s.id }}/delete" style="display:inline"
+                              onsubmit="return confirm('Delete?')">
+                            <button class="btn btn-danger btn-xs">×</button>
+                        </form>
+                        <div id="seed-test-{{ s.id }}" style="margin-top:4px;font-size:11px"></div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="empty-state">Noch keine Seeds — oben importieren.</div>
+            {% endif %}
+        </div>
+
+        <!-- CAMPAIGNS -->
+        <div id="tab-campaigns" class="tab-content">
+            <div class="card" style="background:#f5f6f8;margin-bottom:16px">
+                <h3>Neue Warmup-Kampagne</h3>
+                <form method="post" action="/warmup/campaigns/add">
+                    <div class="grid-2">
+                        <div>
+                            <label>Name</label>
+                            <input name="name" placeholder="Warmup Domain X" required>
+
+                            <label>Sending-Domain</label>
+                            <input name="sending_domain" placeholder="mail.deinedomain.de" required>
+
+                            <label>Absender-Name (der From-Name in den Mails)</label>
+                            <input name="from_name" placeholder="Newsletter Team">
+
+                            <label>Absender-Email (das From-Feld)</label>
+                            <input name="from_email" placeholder="newsletter@deinedomain.de">
+                        </div>
+                        <div>
+                            <label>SMTP-Preset (Host/Port/User/Pass — aus SMTP-Tab)</label>
+                            <select name="smtp_preset_id">
+                                <option value="0">— wähle SMTP —</option>
+                                {% for s in smtps %}
+                                <option value="{{ s.id }}">{{ s.name }} — {{ s.host }}:{{ s.port }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <label>Template (optional — sonst nimmt der Bot Local-Pool)</label>
+                            <select name="template_id">
+                                <option value="0">Kein Template (Local-Pool nutzen)</option>
+                                {% for t in templates %}
+                                <option value="{{ t.id }}">{{ t.name }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <label>Mode (Curve ODER Fixed)</label>
+                            <select name="curve_type">
+                                {% for c in curves %}
+                                <option value="{{ c }}">{{ curve_labels.get(c, c) }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <label>Fixed Daily Target (0 = ignoriert, Curve wird genutzt)</label>
+                            <input name="daily_fixed_target" type="number" value="0" min="0" max="100000">
+                            <div class="form-help">z.B. 1000 → immer ~1000 Mails/Tag (±10% Variation).
+                                Überschreibt die Curve.</div>
+
+                            <label>PDF-Attach % (0-100, 0 = nie)</label>
+                            <input name="pdf_attach_pct" type="number" value="0" min="0" max="100">
+                            <div class="form-help">Wenn > 0: pro Send wird gewürfelt, ob ein random PDF
+                                aus dem Pool angehängt wird. Jedes PDF wird byte-uniquified.</div>
+
+                            <label>Reply-Modus (wenn ein Seed antwortet)</label>
+                            <select name="reply_mode">
+                                <option value="template">Template-Pool (schnell, offline)</option>
+                                <option value="llm">LLM (kontextbezogen — braucht API-Key)</option>
+                                <option value="both">Beides gemischt (50/50)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top:12px">
+                        <button class="btn btn-primary btn-sm">Kampagne anlegen</button>
+                    </div>
+                </form>
+            </div>
+
+            {% if campaigns %}
+            <table>
+                <thead><tr><th>Name</th><th>Domain</th><th>Mode</th><th>Day</th><th>Target</th><th>Sent</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                {% for c in campaigns %}
+                <tr>
+                    <td>{{ c.name }}</td>
+                    <td style="font-family:monospace;font-size:12px">{{ c.sending_domain }}</td>
+                    <td style="font-size:11px">
+                        {% if c.daily_fixed_target and c.daily_fixed_target > 0 %}
+                        <span class="badge">FIXED {{ c.daily_fixed_target }}/Tag</span>
+                        {% else %}
+                        <span class="badge badge-info">{{ c.curve_type }}</span>
+                        {% endif %}
+                        {% if c.pdf_attach_pct %} · PDF {{ c.pdf_attach_pct }}%{% endif %}
+                    </td>
+                    <td>{{ c.current_day }}</td>
+                    <td>{{ c.daily_target }}</td>
+                    <td>{{ c.sent_today }}</td>
+                    <td><span class="badge badge-{{ 'running' if c.status == 'RUNNING' else 'draft' }}">{{ c.status }}</span></td>
+                    <td>
+                        <button class="btn btn-primary btn-xs"
+                                hx-post="/warmup/campaigns/{{ c.id }}/run"
+                                hx-target="#camp-run-{{ c.id }}"
+                                hx-swap="innerHTML">Run</button>
+                        <form method="post" action="/warmup/campaigns/{{ c.id }}/delete" style="display:inline"
+                              onsubmit="return confirm('Delete?')">
+                            <button class="btn btn-danger btn-xs">×</button>
+                        </form>
+                        <div id="camp-run-{{ c.id }}" style="margin-top:4px"></div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">Noch keine Kampagnen.</div>
+            {% endif %}
+        </div>
+
+        <!-- PDF-POOL -->
+        <div id="tab-pdfs" class="tab-content">
+            <div class="card" style="background:#f5f6f8;margin-bottom:16px">
+                <h3>PDF-Anhang-Pool</h3>
+                <p class="muted" style="font-size:12px;margin:0 0 10px">
+                    Uploade eine oder mehrere PDFs (max 20 MB pro Datei). Beim Send wird pro Mail
+                    gewürfelt (siehe Campaign-Setting „PDF-Attach %") ob ein zufälliges PDF aus dem
+                    Pool angehängt wird — <strong>immer byte-uniquified</strong> (Metadaten + EOF-Padding),
+                    damit nicht 100× dieselbe PDF-Datei rausgeht.
+                </p>
+                <form action="/warmup/pdfs/upload" method="post" enctype="multipart/form-data"
+                      hx-post="/warmup/pdfs/upload" hx-target="#pdf-upload-result" hx-swap="innerHTML"
+                      hx-encoding="multipart/form-data">
+                    <input type="file" name="files" accept="application/pdf" multiple required>
+                    <button class="btn btn-primary btn-sm" style="margin-top:8px">Hochladen</button>
+                </form>
+                <div id="pdf-upload-result" style="margin-top:8px"></div>
+            </div>
+
+            {% if pdfs %}
+            <table>
+                <thead><tr><th>Filename</th><th>Größe</th><th>Hochgeladen</th><th></th></tr></thead>
+                <tbody>
+                {% for p in pdfs %}
+                <tr>
+                    <td>{{ p.filename }}</td>
+                    <td style="font-size:11px">{{ (p.size / 1024)|round|int }} KB</td>
+                    <td style="font-size:11px;color:var(--fg2)">{{ p.created_at }}</td>
+                    <td>
+                        <form method="post" action="/warmup/pdfs/{{ p.id }}/delete" style="display:inline"
+                              onsubmit="return confirm('PDF löschen?')">
+                            <button class="btn btn-danger btn-xs">×</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">Noch keine PDFs im Pool.</div>
+            {% endif %}
+        </div>
+
+        <!-- LOG -->
+        <div id="tab-log" class="tab-content">
+            <div id="log-content" hx-get="/warmup/log" hx-trigger="load"
+                 hx-swap="innerHTML">Lade …</div>
+        </div>
+
+        <!-- LLM (optional, minimal) -->
+        <div id="tab-llm" class="tab-content">
+            <div class="card" style="background:#f5f6f8">
+                <h3>LLM Content (optional)</h3>
+                <p class="muted" style="font-size:12px;margin:0 0 10px">
+                    <strong>Content läuft standardmäßig 100% aus dem lokalen deutschen Template-Pool.</strong>
+                    Wenn du hier einen API-Key setzt, wird ~30% der Mails zusätzlich vom LLM generiert
+                    (Rest bleibt local). Replies können in der Campaign-Config auf LLM oder Template
+                    umgestellt werden.
+                </p>
+                <form method="post" action="/warmup/llm/save">
+                    <label>API-URL</label>
+                    <input name="api_url" value="{{ llm.api_url or 'https://openrouter.ai/api/v1/chat/completions' }}">
+                    <label>API-Key</label>
+                    <input name="api_key" type="password" value="{{ llm.api_key or '' }}">
+                    <label>Model</label>
+                    <input name="model" value="{{ llm.model or 'anthropic/claude-sonnet-4-20250514' }}">
+                    <label>Sprache</label>
+                    <input name="language" value="{{ llm.language or 'de' }}" maxlength="2" style="width:60px">
+                    <div class="btn-group" style="margin-top:8px">
+                        <button class="btn btn-primary btn-sm">Speichern</button>
+                        <button type="button" class="btn btn-secondary btn-sm"
+                                hx-post="/warmup/llm/test" hx-target="#llm-test" hx-swap="innerHTML">Test</button>
+                        <span id="llm-test" style="font-size:12px"></span>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

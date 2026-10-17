@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %} — Expurgate Filter{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Expurgate / Hoster Filter</h1></div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <div class="card-header"><h3>Scan a Mail List</h3></div>
+        <form hx-post="/expurgate/scan" hx-target="#scan-result" hx-swap="innerHTML"
+              hx-encoding="multipart/form-data">
+            <label>Upload .txt (one email per line)</label>
+            <input type="file" name="file" accept=".txt,.csv">
+            <label style="margin-top:8px">…or paste addresses below</label>
+            <textarea name="pasted" rows="6" style="font-family:monospace;font-size:12px"
+                       placeholder="user@example.de&#10;other@beispiel.com"></textarea>
+            <div class="form-row" style="margin-top:8px">
+                <div>
+                    <label>Threads</label>
+                    <input name="threads" type="number" value="50" min="1" max="200">
+                </div>
+                <div style="align-self:end">
+                    <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin:0">
+                        <input type="checkbox" name="deep_lookup" value="1" checked style="margin:0;width:auto">
+                        <span>Deep lookup (reverse-DNS on MX-IPs)</span>
+                    </label>
+                </div>
+            </div>
+            <div style="margin-top:10px"><button class="btn btn-primary">Start Scan</button></div>
+            <div class="form-help" style="margin-top:6px">
+                Deep lookup catches hidden Expurgate users whose MX hostname doesn't
+                give them away (e.g. <code>mx.kunde.de</code> resolving to a Strato IP).
+            </div>
+        </form>
+        <div id="scan-result" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h3>Filtered Providers</h3></div>
+        <p style="font-size:13px;color:var(--fg2);margin-bottom:8px">
+            Domains whose MX (or reverse-DNS of MX) matches any of these keywords get
+            sorted into the corresponding bucket and out of the clean list.
+        </p>
+        <table style="font-size:12px">
+            <thead><tr><th>Provider</th><th>Match keywords</th></tr></thead>
+            <tbody>
+            {% for name, keywords in providers.items() %}
+            <tr>
+                <td style="font-weight:500">{{ name }}</td>
+                <td style="font-family:monospace;color:var(--fg2)">{{ keywords|join(', ') }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if recent_jobs %}
+<div class="card">
+    <div class="card-header"><h3>Recent Jobs</h3></div>
+    <table>
+        <thead><tr><th>Job</th><th>Status</th><th>Progress</th><th>Started</th><th></th></tr></thead>
+        <tbody>
+        {% for j in recent_jobs %}
+        <tr>
+            <td style="font-family:monospace;font-size:12px">{{ j.id }}</td>
+            <td>
+                {% if j.status == 'DONE' %}<span class="badge badge-running">Done</span>
+                {% elif j.status == 'RUNNING' %}<span class="badge badge-draft">Running</span>
+                {% else %}<span class="badge badge-failed">{{ j.status }}</span>{% endif %}
+            </td>
+            <td>{{ j.done }}/{{ j.total }}</td>
+            <td style="font-size:11px;color:var(--fg2)">{{ j.started|int }}</td>
+            <td style="white-space:nowrap">
+                <a href="/expurgate/job/{{ j.id }}/status" class="btn btn-secondary btn-xs">View</a>
+                <form method="post" action="/expurgate/job/{{ j.id }}/delete" style="display:inline"
+                      onsubmit="return confirm('Delete job + files?')">
+                    <button class="btn btn-danger btn-xs">Del</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

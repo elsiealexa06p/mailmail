@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% set active = "log" %}
+{% block content %}
+<div class="page-header"><h1>Decision Log</h1></div>
+
+<form method="get" action="/admin/log" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <select name="verdict">
+        <option value="">alle</option>
+        <option value="allow" {{ 'selected' if filter_verdict == 'allow' }}>allow</option>
+        <option value="challenge" {{ 'selected' if filter_verdict == 'challenge' }}>challenge</option>
+        <option value="block" {{ 'selected' if filter_verdict == 'block' }}>block</option>
+    </select>
+    <input name="asn" placeholder="ASN filter (z.B. AS16509)" value="{{ filter_asn }}">
+    <input name="ip" placeholder="IP filter" value="{{ filter_ip }}">
+    <input name="limit" type="number" value="{{ limit }}" min="1" max="2000" style="width:80px">
+    <button class="btn btn-primary btn-sm">Filter</button>
+    <a href="/admin/log.csv?verdict={{ filter_verdict }}&asn={{ filter_asn }}&ip={{ filter_ip }}" class="btn btn-secondary btn-sm">CSV Export</a>
+</form>
+
+<table style="font-size:11px">
+    <thead><tr>
+        <th>ts</th><th>verdict</th><th>score</th><th>IP</th><th>ASN</th><th>CC</th>
+        <th>UA</th><th>Target</th><th>Tok</th><th>Signals</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+        <td>{{ r.ts }}</td>
+        <td>
+            {% if r.verdict == "allow" %}<span class="v-allow">allow</span>
+            {% elif r.verdict == "challenge" %}<span class="v-chal">challenge</span>
+            {% else %}<span class="v-block">block</span>{% endif %}
+            {% if r.dry_run %}<span class="badge badge-warn" style="font-size:9px">DRY</span>{% endif %}
+        </td>
+        <td>{{ r.score }}</td>
+        <td style="font-family:monospace">{{ r.ip }}</td>
+        <td style="font-family:monospace">{{ r.asn }}</td>
+        <td>{{ r.country }}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+            title="{{ r.user_agent }}">{{ r.user_agent[:40] }}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+            title="{{ r.target }}">{{ r.target[:40] }}</td>
+        <td>{% if r.token_valid %}✓{% else %}✗{% endif %}</td>
+        <td style="font-family:monospace">
+            {% for k, v in r.signals.items() %}<span class="chip">{{ k }}:{{ v }}</span>{% endfor %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<form method="post" action="/admin/settings/prune-log" style="margin-top:20px"
+      onsubmit="return confirm('Ältere Entscheidungen als N Tage löschen?')">
+    <label>Log-Retention (Tage)</label>
+    <input name="keep_days" type="number" value="30" min="1" max="365" style="width:80px">
+    <button class="btn btn-danger btn-sm">Prune älter als N Tage</button>
+</form>
+{% endblock %}

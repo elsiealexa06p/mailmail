@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ cfg.brand_text }}</title>
+<link rel="stylesheet" href="/static/style.css">
+{% if cfg.turnstile_site_key %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
+<style>
+    body { background: #f5f6f8; margin:0; }
+    .center { min-height:100vh; display:flex; align-items:center; justify-content:center; }
+    .card {
+        background:white; padding:40px 32px; max-width:420px; text-align:center;
+        border-radius:12px; box-shadow: 0 4px 24px rgba(0,0,0,.06);
+    }
+    .card img { max-width:180px; max-height:60px; margin-bottom:20px; }
+    .spinner {
+        width:38px; height:38px; border-radius:50%; margin:16px auto;
+        border:3px solid #eee; border-top-color: {{ cfg.brand_color }};
+        animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .brand-text { color:#333; font-size:15px; margin-top:8px; }
+    .muted { color:#888; font-size:12px; margin-top:20px; }
+    .honeypot-input {
+        position:absolute !important; left:-9999px !important;
+        width:1px !important; height:1px !important; opacity:0 !important;
+    }
+    noscript .n {
+        margin-top:16px; background:#fee; color:#a22;
+        padding:10px; border-radius:6px; font-size:13px;
+    }
+    .cf-turnstile { margin: 16px auto 0; }
+</style>
+</head>
+<body>
+<div class="center">
+    <div class="card">
+        {% if cfg.logo_path %}
+        <img src="{{ cfg.logo_path }}" alt="Logo">
+        {% endif %}
+        <div class="spinner"></div>
+        <div class="brand-text">{{ cfg.brand_text }}</div>
+
+        <form id="chal" method="post" action="/verify" autocomplete="off">
+            <input type="hidden" name="token" value="{{ token }}">
+            <input type="hidden" name="pow_seed" value="{{ pow_seed }}">
+            <input type="hidden" name="pow_answer" id="pow_answer" value="">
+            <input type="hidden" name="pow_hash" id="pow_hash" value="">
+            <input type="hidden" name="webdriver" id="webdriver" value="">
+            <input type="hidden" name="webgl_vendor" id="webgl_vendor" value="">
+            <input type="hidden" name="canvas_hash" id="canvas_hash" value="">
+            <input type="hidden" name="no_plugins" id="no_plugins" value="">
+            <input type="hidden" name="submit_ms" id="submit_ms" value="">
+
+            <!-- Honeypot — versteckt vor Menschen, für Bots sichtbar. -->
+            <input type="text" name="honeypot" class="honeypot-input"
+                   tabindex="-1" autocomplete="off" aria-hidden="true">
+
+            {% if cfg.turnstile_site_key %}
+            <!-- Cloudflare Turnstile Widget — meist unsichtbar (managed mode) -->
+            <div class="cf-turnstile"
+                 data-sitekey="{{ cfg.turnstile_site_key }}"
+                 data-callback="onTurnstileOk"
+                 data-error-callback="onTurnstileErr"
+                 data-timeout-callback="onTurnstileErr"
+                 data-theme="light"></div>
+            {% endif %}
+        </form>
+
+        <noscript>
+            <div class="n">Diese Seite benötigt JavaScript für die Sicherheitsprüfung.</div>
+        </noscript>
+        <p class="muted">Ziel: <code style="font-size:11px">{{ target_preview[:60] }}{% if target_preview|length > 60 %}…{% endif %}</code></p>
+    </div>
+</div>
+
+<script>
+(function(){
+    var startedAt = performance.now();
+    var f = document.getElementById('chal');
+    var seed = {{ pow_seed|tojson }};
+    var difficulty = {{ pow_difficulty }};
+    var prefix = new Array(difficulty + 1).join('0');
+    var minShow = ({{ cfg.wait_seconds|int }} * 1000) || 0;
+    var needsTurnstile = {{ 'true' if cfg.turnstile_site_key else 'false' }};
+    var turnstileOk = !needsTurnstile;
+    // Wenn Turnstile da ist → PoW überspringen (Turnstile ist der stärkere
+    // Human-Beweis, und Browser-crypto.subtle-Loops sind langsam). PoW nur
+    // laufen lassen wenn's KEIN Turnstile-Widget gibt.
+    var powDone = needsTurnstile;   // ohne Turnstile: false → PoW muss laufen
+    var powAttempted = false;
+
+    // 1. Client signals
+    document.getElementById('webdriver').value =
+        (navigator.webdriver === true) ? 'true' : 'false';
+    document.getElementById('no_plugins').value =
+        (!navigator.plugins || navigator.plugins.length === 0) ? 'true' : 'false';
+
+    try {
+        var c = document.createElement('canvas'); c.width = 240; c.height = 60;
+        var g = c.getContext('2d');
+        g.textBaseline = 'top'; g.font = '14px Arial';
+        g.fillStyle = '#f60'; g.fillRect(0, 0, 240, 60);
+        g.fillStyle = '#069'; g.fillText('antibot canvas', 4, 20);
+        var d = c.toDataURL();
+        var h = 0;
+        for (var i = 0; i < d.length; i++) { h = ((h << 5) - h) + d.charCodeAt(i); h |= 0; }
+        document.getElementById('canvas_hash').value = h.toString(16);
+    } catch(e) {}
+
+    try {
+        var gl = document.createElement('canvas').getContext('webgl');
+        if (gl) {
+            var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+            if (dbg) {
+                document.getElementById('webgl_vendor').value =
+                    gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '';
+            }
+        }
+    } catch(e) {}
+
+    // 2. PoW — brute-force nonce until sha256(seed:nonce) starts with N zero nibbles.
+    async function sha256hex(s) {
+        var enc = new TextEncoder().encode(s);
+        var buf = await crypto.subtle.digest('SHA-256', enc);
+        return Array.from(new Uint8Array(buf)).map(function(b){
+            return b.toString(16).padStart(2,'0');
+        }).join('');
+    }
+
+    async function solve() {
+        var n = 0;
+        for (;;) {
+            var h = await sha256hex(seed + ':' + n);
+            if (h.slice(0, difficulty) === prefix) {
+                document.getElementById('pow_answer').value = n.toString();
+                document.getElementById('pow_hash').value = h;
+                return;
+            }
+            n++;
+            if (n > 20000000) return;  // safety cap
+        }
+    }
+
+    function trySubmit() {
+        if (!powDone || !turnstileOk) return;
+        document.getElementById('submit_ms').value =
+            Math.round(performance.now() - startedAt).toString();
+        var elapsed = performance.now() - startedAt;
+        var wait = Math.max(0, minShow - elapsed);
+        setTimeout(function(){ f.submit(); }, wait);
+    }
+
+    // Turnstile-Callbacks (globaler Scope wegen data-callback)
+    window.onTurnstileOk = function(){ turnstileOk = true; trySubmit(); };
+    window.onTurnstileErr = function(){
+        // Turnstile ist krachen gegangen — trotzdem weiter, Server-Verify entscheidet.
+        // Der cf-turnstile-response bleibt leer, Server sieht das und blockt/lässt durch.
+        turnstileOk = true;
+        trySubmit();
+    };
+
+    // PoW nur laufen wenn's KEIN Turnstile gibt (sonst overkill + slow)
+    if (!needsTurnstile) {
+        powAttempted = true;
+        solve().then(function(){
+            powDone = true;
+            trySubmit();
+        });
+    }
+    // Wenn Turnstile schon fertig ist (invisible-mode) bevor unser Script rennt,
+    // hätte der Callback trySubmit früher aufgerufen und powDone war true
+    // (weil needsTurnstile), also läuft das schon.
+})();
+</script>
+</body>
+</html>

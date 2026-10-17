@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% set active = "gates" %}
+{% block content %}
+<div class="page-header">
+    <h1>Neue Gate anlegen</h1>
+    <a href="/admin/gates" class="btn btn-secondary btn-sm">← Zurück</a>
+</div>
+
+<div class="card">
+    <p style="font-size:13px">
+        Server-IP für Auto-CF-Records: <strong>{{ server_ip or 'nicht erkannt' }}</strong><br>
+        Dynadot-API: {% if dynadot_ready %}<span class="v-allow">konfiguriert</span>{% else %}<span class="v-block">fehlt</span>{% endif %} ·
+        Cloudflare-API: {% if cf_ready %}<span class="v-allow">konfiguriert</span>{% else %}<span class="v-block">fehlt</span>{% endif %}
+        (unter <a href="/admin/domains">Domains</a>)
+    </p>
+
+    <form method="post" action="/admin/gates/new" enctype="multipart/form-data"
+          hx-post="/admin/gates/new" hx-target="#wiz-result" hx-swap="innerHTML"
+          hx-encoding="multipart/form-data">
+        <fieldset>
+            <legend>Domain</legend>
+            <label>Hostname (root — nicht Subdomain)</label>
+            <input name="hostname" placeholder="test.de" required>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+                <input type="checkbox" name="buy_dynadot" value="1"
+                       {% if not dynadot_ready %}disabled{% endif %}>
+                <span>Bei Dynadot kaufen (falls noch nicht in deinem Konto)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+                <input type="checkbox" name="auto_cf" value="1" checked
+                       {% if not cf_ready %}disabled{% endif %}>
+                <span>Cloudflare: Zone anlegen + A-Records @ / www &rarr; {{ server_ip }}</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+                <input type="checkbox" name="add_www" value="1" checked>
+                <span>www.-Subdomain zusätzlich</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+                <input type="checkbox" name="auto_turnstile" value="1"
+                       {% if not cf_ready %}disabled{% endif %}>
+                <span>Turnstile-Widget via CF API automatisch erstellen &amp; hinterlegen</span>
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Härtegrad</legend>
+            <label>Modus</label>
+            <select name="mode">
+                {% for k, p in presets.items() %}
+                <option value="{{ k }}" {% if k == 'medium' %}selected{% endif %}>
+                    {{ p.label }} (allow ≤ {{ p.threshold_allow }}, block ≥ {{ p.threshold_block }})
+                </option>
+                {% endfor %}
+            </select>
+            <div class="form-help">Nachträglich jederzeit im Gate-Edit umschaltbar.</div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Ziel &amp; Branding</legend>
+            <label>Ziel-URL(s) — eine pro Zeile, mehrere = random pro Klick</label>
+            <textarea name="target_url" rows="3" required
+                      placeholder="https://real-landing.de/x&#10;https://real-landing.de/y  (optional — random 50/50)"
+                      style="font-family:monospace;font-size:12px"></textarea>
+            <label>Wartetext (Challenge-Seite)</label>
+            <input name="brand_text" placeholder="Sicherheitsprüfung läuft …">
+            <label>Primary Color</label>
+            <input name="brand_color" type="color" value="#005eb8" style="width:60px;height:34px">
+            <label>Logo (PNG / JPG / WEBP / SVG)</label>
+            <input type="file" name="logo" accept="image/*">
+        </fieldset>
+
+        <fieldset>
+            <legend>Erste Links</legend>
+            <label>Wieviele Ready-Links direkt generieren?</label>
+            <input name="initial_links" type="number" value="10" min="0" max="500" style="width:100px">
+            <div class="form-help">Slug ist 8-stellig alphanumerisch — später beliebig nachgenerierbar.</div>
+        </fieldset>
+
+        <div style="margin-top:16px">
+            <button class="btn btn-primary">Gate anlegen &amp; deployen</button>
+        </div>
+    </form>
+    <div id="wiz-result" style="margin-top:16px"></div>
+</div>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+{% endblock %}

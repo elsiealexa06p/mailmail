@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %} — Config{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Configuration</h1></div>
+<form method="post" action="/config/save">
+<div class="grid-2" style="align-items:start">
+    <div>
+        <div class="card">
+            <h3>Sender</h3>
+            <label>From Name</label>
+            <input name="from_name" value="{{ cfg.from_name or '' }}" placeholder="Support Team or {from_name} macro">
+            <div class="form-help">{from_name} picks random line from macro "from_name"</div>
+            <label>From Email</label>
+            <input name="from_email" value="{{ cfg.from_email or '' }}" placeholder="Empty = SMTP account email">
+            <label>Subject</label>
+            <input name="subject" value="{{ cfg.subject or '' }}" placeholder="Hello {email_user} — {subject|Your Update}">
+            <div class="form-help">Supports macros, spintax {a|b|c}, [RANDSTR:N:charset:case]</div>
+        </div>
+        <div class="card">
+            <h3>Sending</h3>
+            <label>Threads (1-200)</label>
+            <input name="threads" type="number" value="{{ cfg.threads }}" min="1" max="200">
+            <label>Normal Delay (sec)</label>
+            <input name="normal_delay" type="number" step="0.1" value="{{ cfg.normal_delay }}">
+            <div class="form-help">Gaussian jitter applied. For normal domains.</div>
+            <label>Provider Delay (sec)</label>
+            <input name="provider_delay" type="number" step="0.1" value="{{ cfg.provider_delay }}">
+            <div class="form-help">For Gmail, Yahoo, Outlook, iCloud, etc.</div>
+            <label>SMTP Timeout (sec)</label>
+            <input name="smtp_timeout" type="number" value="{{ cfg.smtp_timeout }}">
+            <label>Warmup Count</label>
+            <input name="warmup_count" type="number" value="{{ cfg.warmup_count }}">
+            <div class="form-help">First N emails per SMTP at warmup speed</div>
+            <label>Warmup Delay (sec)</label>
+            <input name="warmup_delay" type="number" step="0.1" value="{{ cfg.warmup_delay }}">
+            <label>Schedule (HH:MM)</label>
+            <input name="schedule_time" value="{{ cfg.schedule_time or '' }}" placeholder="14:30">
+            <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer">
+                <input type="checkbox" name="ignore_ssl_errors" {{ 'checked' if cfg.ignore_ssl_errors }} style="width:auto">
+                <span>Ignore SSL Errors</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer">
+                <input type="checkbox" name="auto_retry_failed" {{ 'checked' if cfg.get('auto_retry_failed', True) }} style="width:auto">
+                <span>Auto-Retry Failed Mails</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer">
+                <input type="checkbox" name="auto_suppress_hard_bounces" {{ 'checked' if cfg.get('auto_suppress_hard_bounces', False) }} style="width:auto">
+                <span>Auto-Suppress Hard Bounces</span>
+            </label>
+            <div class="form-help">
+                Off by default. When on, addresses flagged as <code>mailbox_not_found</code>
+                (specific "no such user" phrases / 5.1.1 DSN) go to the suppression list on
+                <a href="/bounces" style="color:var(--accent)">Bounces</a>. Other 5xx
+                rejects (content filter, SMTP config issues) are <em>not</em> suppressed —
+                they retry on the next pass instead.
+            </div>
+        </div>
+        <div class="card">
+            <h3>Test</h3>
+            <label>Pre-check Recipients</label>
+            <input name="test_recipients" value="{{ cfg.test_recipients or '' }}" placeholder="test@inbox.com, test2@inbox.com">
+            <label>Interval Recipients</label>
+            <input name="interval_recipients" value="{{ cfg.interval_recipients or '' }}" placeholder="Fallback to pre-check if empty">
+            <label>Test Interval (every N sends)</label>
+            <input name="test_interval" type="number" value="{{ cfg.test_interval }}">
+        </div>
+    </div>
+    <div>
+        <div class="card">
+            <h3>Proxy</h3>
+            <p style="font-size:13px;color:var(--fg2)">
+                Proxy configs are managed on the <a href="/proxies" style="color:var(--accent)">Proxies</a> page.
+                {% if cfg.proxy_value %}
+                <br>Active: <strong>{{ cfg.proxy_mode }}</strong> — {{ cfg.proxy_value.splitlines()[0][:40] }}
+                {% else %}
+                <br>No proxy active.
+                {% endif %}
+            </p>
+        </div>
+        <div class="card">
+            <h3>Anti-Fingerprint</h3>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" name="antifingerprint_classes" {{ 'checked' if cfg.antifingerprint_classes }} style="width:auto">
+                <span>CSS Class Injection</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px">
+                <input type="checkbox" name="advanced_antifingerprint" {{ 'checked' if cfg.advanced_antifingerprint }} style="width:auto">
+                <span>Advanced Structure Variation (tag swaps, pixel jitter, table-to-div)</span>
+            </label>
+            <label>Variation Probability (0.0-1.0)</label>
+            <input name="structure_variation" type="number" step="0.1" min="0" max="1" value="{{ cfg.structure_variation }}">
+            <label>MIME Profile</label>
+            <select name="mime_profile">
+                <option value="default" {{ 'selected' if cfg.mime_profile == 'default' }}>Default (static headers)</option>
+                <option value="rotate" {{ 'selected' if cfg.mime_profile == 'rotate' }}>Rotate (random per email)</option>
+                <option value="outlook_desktop" {{ 'selected' if cfg.mime_profile == 'outlook_desktop' }}>Outlook 16.0 Desktop</option>
+                <option value="apple_mail_mac" {{ 'selected' if cfg.mime_profile == 'apple_mail_mac' }}>Apple Mail macOS</option>
+                <option value="apple_mail_iphone" {{ 'selected' if cfg.mime_profile == 'apple_mail_iphone' }}>iPhone Mail</option>
+                <option value="thunderbird" {{ 'selected' if cfg.mime_profile == 'thunderbird' }}>Mozilla Thunderbird</option>
+            </select>
+            <div class="form-help">Rotate = each email gets random boundary format, message-ID style, and headers. Static = same structure for all.</div>
+            <div class="form-help">HTML rotation is configured on the <a href="/templates" style="color:var(--accent)">HTML Editor</a> page.</div>
+        </div>
+        <div class="card">
+            <h3>Image / Logo</h3>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" name="image_enabled" {{ 'checked' if cfg.image_enabled }} style="width:auto">
+                <span>Enable Logo Embedding</span>
+            </label>
+            <label>Mode</label>
+            <select name="image_mode" onchange="
+                document.getElementById('url-logo-config').style.display=this.value==='url'?'':'none';
+                document.getElementById('text-logo-config').style.display=this.value==='text'?'':'none';
+                document.getElementById('static-logo-config').style.display=this.value==='static_url'?'':'none';
+            ">
+                <option value="cid" {{ 'selected' if cfg.image_mode == 'cid' }}>CID Inline (embedded in email)</option>
+                <option value="url" {{ 'selected' if cfg.image_mode == 'url' }}>URL (pre-uploaded to domain)</option>
+                <option value="cloudinary" {{ 'selected' if cfg.image_mode == 'cloudinary' }}>Cloudinary CDN</option>
+                <option value="text" {{ 'selected' if cfg.image_mode == 'text' }}>Text Logo</option>
+                <option value="static_url" {{ 'selected' if cfg.image_mode == 'static_url' }}>Static URL (single fixed image)</option>
+            </select>
+            <div id="url-logo-config" style="margin-top:8px;{{ '' if cfg.image_mode == 'url' else 'display:none' }}">
+                <label>Logo Base URL</label>
+                <input name="logo_base_url" value="{{ cfg.get('logo_base_url', '') }}" placeholder="https://logos.domain.de">
+                <div class="form-help">Variants are served as {base_url}/{filename}.</div>
+            </div>
+            <div id="static-logo-config" style="margin-top:8px;{{ '' if cfg.image_mode == 'static_url' else 'display:none' }}">
+                <label>Logo Image URL</label>
+                <input name="logo_static_url" value="{{ cfg.get('logo_static_url', '') }}" placeholder="https://cdn.example.com/logo.png">
+                <div class="form-help">One fixed URL for every mail. No variants, no upload, no CID — just a direct <code>&lt;img src&gt;</code>.</div>
+            </div>
+            <div id="text-logo-config" style="margin-top:8px;{{ '' if cfg.image_mode == 'text' else 'display:none' }}">
+                <label>Logo Text</label>
+                <input name="logo_text" value="{{ cfg.get('logo_text', '{Logo}') }}" placeholder="{Logo} or {MacroName} or fixed text">
+                <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+                    <label style="margin:0">Color</label>
+                    <input type="color" name="logo_text_color" value="{{ cfg.get('logo_text_color', '#333333') }}" style="width:40px;height:30px;padding:2px;cursor:pointer">
+                    <input name="logo_text_color_hex" value="{{ cfg.get('logo_text_color', '#333333') }}" style="width:80px;font-size:12px"
+                           oninput="this.form.logo_text_color.value=this.value">
+                </div>
+                <div class="form-help">Supports macros and spintax.</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px">
+                <input type="checkbox" name="image_quantize" {{ 'checked' if cfg.image_quantize }} style="width:auto">
+                <span>Palette Quantization (smaller file size)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px">
+                <input type="checkbox" name="image_downscale" {{ 'checked' if cfg.image_downscale }} style="width:auto">
+                <span>Downscale to 220px width</span>
+            </label>
+            <label>Max Colors (2-256)</label>
+            <input name="logo_max_colors" type="number" value="{{ cfg.logo_max_colors }}" min="2" max="256">
+            <label>Logo Rotate Every N</label>
+            <input name="logo_rotate_every" type="number" value="{{ cfg.logo_rotate_every }}">
+        </div>
+        <div class="card">
+            <h3>Redirect Links</h3>
+            <div class="form-help">
+                Manage redirect pools on the <a href="/redirects" style="color:var(--accent)">Redirects</a> page.
+                Select a pool per campaign in Campaign Edit. Random link per mail.
+            </div>
+        </div>
+        <div class="card">
+            <h3>Cloudinary</h3>
+            <label>Cloud Name</label><input name="cloudinary_cloud_name" value="{{ cfg.cloudinary_cloud_name or '' }}">
+            <label>API Key</label><input name="cloudinary_api_key" value="{{ cfg.cloudinary_api_key or '' }}">
+            <label>API Secret</label><input name="cloudinary_api_secret" type="password" value="{{ cfg.cloudinary_api_secret or '' }}">
+        </div>
+        <div class="card">
+            <h3>Spam Checker</h3>
+            <label>Backend</label>
+            <select name="spam_checker">
+                <option value="both" {{ 'selected' if cfg.spam_checker == 'both' }}>Both (Rspamd + SpamAssassin)</option>
+                <option value="rspamd" {{ 'selected' if cfg.spam_checker == 'rspamd' }}>Rspamd only</option>
+                <option value="spamassassin" {{ 'selected' if cfg.spam_checker == 'spamassassin' }}>SpamAssassin only</option>
+            </select>
+            <label>Rspamd URL</label>
+            <input name="spam_checker_url" value="{{ cfg.spam_checker_url or 'http://127.0.0.1:11333/checkv2' }}">
+            <div class="form-help">Default: http://127.0.0.1:11333/checkv2. Install: sudo apt install rspamd</div>
+        </div>
+        <div class="card">
+            <h3>Blacklist</h3>
+            <label>MXToolbox API Key</label>
+            <input name="mxtoolbox_api_key" value="{{ cfg.mxtoolbox_api_key or '' }}" placeholder="For pre-flight IP check">
+        </div>
+        <div class="card">
+            <h3>Auto-Freshness Reset</h3>
+            <div class="form-help" style="margin-bottom:8px">
+                During long campaigns, periodically pause sending and regenerate the HTML template pool
+                and/or logo variants. Each reset takes 5-15 seconds. 0 = off.
+            </div>
+            <label>Reset every N mails (0 = disabled)</label>
+            <input name="freshness_every_n_mails" type="number" min="0" max="100000" value="{{ cfg.freshness_every_n_mails or 0 }}" placeholder="e.g. 500">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px">
+                <input type="checkbox" name="freshness_reset_html" {{ 'checked' if cfg.freshness_reset_html }} style="width:auto">
+                <span>Regenerate HTML templates (random layouts)</span>
+            </label>
+            <label>How many HTMLs per reset</label>
+            <input name="freshness_html_count" type="number" min="1" max="5000" value="{{ cfg.freshness_html_count or 25 }}">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px">
+                <input type="checkbox" name="freshness_reset_logos" {{ 'checked' if cfg.freshness_reset_logos }} style="width:auto">
+                <span>Regenerate logo variants (wipe and re-derive from source logos)</span>
+            </label>
+            <label>How many variants per reset</label>
+            <input name="freshness_logo_count" type="number" min="1" max="5000" value="{{ cfg.freshness_logo_count or 25 }}">
+            <div class="form-help" style="margin-top:4px">
+                Logo regen only fires for image modes <code>cid</code> and <code>url</code>.
+                <code>text</code> mode never reads variants so the reset is skipped.
+                <code>cloudinary</code> mode reads CDN URLs from the logo group and would
+                require re-uploading to Cloudinary, which we don't do here — the reset is
+                skipped too.
+            </div>
+        </div>
+        <div class="card">
+            <h3>Gradual Send (Warm-up Ramp)</h3>
+            <div class="form-help" style="margin-bottom:8px">
+                Instead of hitting full sending speed immediately, linearly ramp from
+                a small starting fraction up to 100% over a configurable window. Helps
+                with cold-IP warm-up and avoids tripping per-hour ESP rate limits when
+                a fresh campaign starts. Only affects the per-mail sleep delay — thread
+                count and SMTP-pool cooldowns are unchanged.
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" name="gradual_send_enabled" {{ 'checked' if cfg.gradual_send_enabled }} style="width:auto">
+                <span>Enable Gradual Send</span>
+            </label>
+            <label>Ramp duration (minutes to reach full speed)</label>
+            <input name="gradual_send_ramp_minutes" type="number" min="5" max="1440" value="{{ cfg.gradual_send_ramp_minutes or 180 }}">
+            <div class="form-help">Default 180 = 3 hours. Effective range 5 min – 24 h.</div>
+            <label>Starting speed factor (0.01 – 1.0)</label>
+            <input name="gradual_send_start_factor" type="number" step="0.01" min="0.01" max="1" value="{{ cfg.gradual_send_start_factor or 0.05 }}">
+            <div class="form-help">
+                Fraction of full speed at t=0. 0.05 = start at 5% of full throughput.
+                Lower = slower start. At configured ramp time, speed reaches 100%.
+            </div>
+        </div>
+    </div>
+</div>
+<div style="margin-top:16px"><button class="btn btn-primary" style="padding:12px 24px">Save All Settings</button></div>
+</form>
+{% endblock %}

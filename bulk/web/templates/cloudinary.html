@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %} — Cloudinary{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Cloudinary Logo Uploader</h1></div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <div class="card-header"><h3>Credentials</h3></div>
+        <form method="post" action="/cloudinary/config">
+            <label>Cloud Name</label>
+            <input name="cloud_name" value="{{ cfg.cloud_name }}" placeholder="my-cloud">
+            <label>API Key</label>
+            <input name="api_key" value="{{ cfg.api_key }}" placeholder="123456789012345">
+            <label>API Secret</label>
+            <input name="api_secret" type="password" value="{{ cfg.api_secret }}"
+                   placeholder="••••••••••••••••••••">
+            <div style="margin-top:10px"><button class="btn btn-primary btn-sm">Save</button></div>
+            <div class="form-help" style="margin-top:6px">
+                From your Cloudinary dashboard → <code>Settings → API Keys</code>.
+                Stored locally in <code>bulk.db</code>.
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h3>Upload Logo</h3></div>
+        {% if not (cfg.cloud_name and cfg.api_key and cfg.api_secret) %}
+        <div class="alert alert-warning">Save credentials first.</div>
+        {% endif %}
+        <form hx-post="/cloudinary/upload" hx-target="#up-result" hx-swap="innerHTML"
+              hx-encoding="multipart/form-data">
+            <label>Logo file (PNG/JPG/WEBP)</label>
+            <input type="file" name="file" accept="image/*" required>
+
+            <div class="form-row" style="margin-top:8px">
+                <div>
+                    <label>How many copies</label>
+                    <input name="count" type="number" value="10" min="1" max="200">
+                </div>
+                <div>
+                    <label>Base name</label>
+                    <input name="base_name" value="Logo" placeholder="Logo">
+                </div>
+            </div>
+            <div class="form-help">
+                count &gt; 1 → public IDs become <code>Logo1_xxx</code>, <code>Logo2_xxx</code>, … so each URL is unique.
+            </div>
+
+            <label style="margin-top:8px">Folder (optional)</label>
+            <input name="folder" value="" placeholder="logos/2026">
+
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:8px">
+                <input type="checkbox" name="pixel_tweak" value="1" checked style="margin:0;width:auto">
+                <span>Per-upload pixel tweak (different file hash for each copy)</span>
+            </label>
+            <div class="form-help">
+                Nudges one pixel by ±1 per copy — visually identical, but every URL
+                points to a byte-different file so perceptual-hash filters can't lump them together.
+            </div>
+
+            <div style="margin-top:10px">
+                <button class="btn btn-primary btn-sm">Start Upload</button>
+            </div>
+        </form>
+        <div id="up-result" style="margin-top:10px">
+            {% if progress.running %}
+            <div hx-get="/cloudinary/progress" hx-trigger="load, every 1s" hx-swap="outerHTML"></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if uploads %}
+<div class="card">
+    <div class="card-header"><h3>Upload Batches</h3></div>
+    {% for u in uploads %}
+    <details {% if loop.first %}open{% endif %} style="margin-bottom:10px;border:1px solid var(--border-light);border-radius:var(--radius);background:var(--bg)">
+        <summary style="cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <span>
+                <strong>{{ u.base_public_id }}</strong>
+                <span style="color:var(--fg2);font-size:12px;margin-left:6px">
+                    {{ u.link_count }}/{{ u.count }} link(s)
+                    {% if u.folder %} · folder <code>{{ u.folder }}</code>{% endif %}
+                    {% if u.pixel_tweak %} · pixel-tweaked{% endif %}
+                </span>
+            </span>
+            <span style="display:flex;gap:6px">
+                <a href="/cloudinary/upload/{{ u.id }}/export.txt" class="btn btn-secondary btn-xs">Download .txt</a>
+                <form method="post" action="/cloudinary/upload/{{ u.id }}/delete" style="display:inline"
+                      onsubmit="return confirm('Delete batch (local record only — files stay on Cloudinary)?')">
+                    <button class="btn btn-danger btn-xs">Delete</button>
+                </form>
+            </span>
+        </summary>
+        <div style="padding:10px 12px">
+            {% if u.links %}
+            <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+                <button type="button" class="btn btn-success btn-xs"
+                        onclick="(function(b){var t=b.parentElement.nextElementSibling;navigator.clipboard.writeText(t.value).then(function(){var o=b.textContent;b.textContent='Copied!';setTimeout(function(){b.textContent=o},1200)})})(this)">
+                    Copy all URLs
+                </button>
+                <span style="font-size:12px;color:var(--fg2);align-self:center">
+                    {{ u.links|length }} URL{% if u.links|length != 1 %}s{% endif %} — one per line, ready to paste
+                </span>
+            </div>
+            <textarea readonly rows="{{ [u.links|length, 12]|min }}"
+                      style="width:100%;font-family:monospace;font-size:12px;background:#fff"
+                      onclick="this.select()">{% for l in u.links %}{{ l.secure_url }}
+{% endfor %}</textarea>
+            {% else %}
+            <p style="font-size:12px;color:var(--fg2);margin:0">No links yet — upload may still be running or failed.</p>
+            {% endif %}
+        </div>
+    </details>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

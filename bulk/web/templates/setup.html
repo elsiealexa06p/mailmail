@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Mailer — Setup</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg); }
+        .setup-card { background: var(--bg2); border: 1px solid var(--border-light); border-radius: 12px;
+                      padding: 40px; width: 100%; max-width: 440px; box-shadow: var(--shadow-md); }
+        .setup-card h1 { font-size: 24px; margin-bottom: 6px; text-align: center; }
+        .setup-card .subtitle { color: var(--fg2); font-size: 13px; text-align: center; margin-bottom: 28px; }
+        .setup-card .error { background: var(--red-light); color: var(--red); padding: 10px 14px;
+                             border-radius: var(--radius); font-size: 13px; margin-bottom: 16px;
+                             border: 1px solid #f5c6cb; }
+        .setup-card .info { background: var(--accent-light); color: var(--accent); padding: 10px 14px;
+                            border-radius: var(--radius); font-size: 13px; margin-bottom: 16px;
+                            border: 1px solid #c3d1ff; }
+    </style>
+</head>
+<body>
+    <div class="setup-card">
+        <h1>Welcome</h1>
+        <p class="subtitle">Create your admin account to get started</p>
+
+        <div class="info">
+            This is a one-time setup. No accounts exist yet.
+        </div>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/setup">
+            <label>Username</label>
+            <input name="username" type="text" required autofocus placeholder="Choose a username">
+
+            <label>Display Name (shown in sidebar)</label>
+            <input name="display_name" type="text" placeholder="e.g. Admin">
+
+            <label>Password</label>
+            <input name="password" type="password" required placeholder="Min. 6 characters">
+
+            <label>Confirm Password</label>
+            <input name="password2" type="password" required placeholder="Repeat password">
+
+            <div style="margin-top:20px">
+                <button class="btn btn-primary" style="width:100%;padding:12px">Create Account & Login</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

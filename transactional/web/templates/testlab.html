@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %} — Test Lab{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Test Lab</h1></div>
+
+<div class="card">
+    <form hx-post="/testlab/send" hx-target="#testlab-result" hx-swap="innerHTML">
+        <div class="grid-2">
+            <div>
+                <label>Send To</label>
+                <input name="to_email" placeholder="test@inbox.com" required>
+
+                <label>SMTP List</label>
+                <select name="smtp_list_id" required>
+                    <option value="">— Select —</option>
+                    {% for sl in smtp_lists %}
+                    <option value="{{ sl.id }}">{{ sl.name }} ({{ sl.count }})</option>
+                    {% endfor %}
+                </select>
+
+                <label>HTML Template</label>
+                <select name="template_id">
+                    <option value="0">Default test content</option>
+                    {% for t in templates %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <label>MIME Profile</label>
+                <select name="mime_profile" id="lab-profile">
+                    {% for name, desc in profiles %}
+                    <option value="{{ name }}">{{ desc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>From Name (optional override)</label>
+                <input name="from_name" placeholder="Uses Config default" value="{{ cfg.from_name or '' }}">
+
+                <label>From Email (optional override)</label>
+                <input name="from_email_override" placeholder="Uses Config or SMTP account">
+
+                <label>Subject (optional override)</label>
+                <input name="subject" placeholder="Uses Config default" value="{{ cfg.subject or '' }}">
+
+                <div class="form-help" style="margin-top:16px">
+                    Sends via proxy if configured. Uses macros, spintax, and
+                    the selected MIME profile for header transformation.
+                </div>
+            </div>
+        </div>
+        <div style="margin-top:14px" class="btn-group">
+            <button class="btn btn-primary">Send Test Mail</button>
+            <button type="button" class="btn btn-secondary"
+                    hx-post="/testlab/preview-headers"
+                    hx-target="#testlab-result"
+                    hx-swap="innerHTML"
+                    hx-include="[name=mime_profile],[name=from_email_override]">Preview Headers Only</button>
+        </div>
+    </form>
+</div>
+
+<div id="testlab-result" style="margin-top:16px"></div>
+
+<div class="card" style="margin-top:16px">
+    <h3>Profile Quick Reference</h3>
+    <table style="font-size:12px">
+        <thead><tr><th>Profile</th><th>Message-ID</th><th>Boundary</th><th>Key Headers</th></tr></thead>
+        <tbody>
+            <tr>
+                <td><strong>Default</strong></td>
+                <td style="font-family:monospace">hex.hex@domain</td>
+                <td style="font-family:monospace">----=_Part_ts_hex</td>
+                <td>Auto-Submitted</td>
+            </tr>
+            <tr>
+                <td><strong>Outlook 16</strong></td>
+                <td style="font-family:monospace">HEX40@domain</td>
+                <td style="font-family:monospace">NextPart_000_seq_FILETIME</td>
+                <td>X-Mailer, Thread-Index, Content-Language</td>
+            </tr>
+            <tr>
+                <td><strong>Apple Mac</strong></td>
+                <td style="font-family:monospace">UUID-UPPER@domain</td>
+                <td style="font-family:monospace">Apple-Mail-UUID</td>
+                <td>Mime-Version: 1.0 (1.0), CTE: 7bit top</td>
+            </tr>
+            <tr>
+                <td><strong>iPhone</strong></td>
+                <td style="font-family:monospace">UUID-UPPER@domain</td>
+                <td style="font-family:monospace">Apple-Mail-UUID</td>
+                <td>X-Mailer: iPhone Mail (build)</td>
+            </tr>
+            <tr>
+                <td><strong>Thunderbird</strong></td>
+                <td style="font-family:monospace">uuid-lower@domain</td>
+                <td style="font-family:monospace">(unchanged)</td>
+                <td>User-Agent: Mozilla Thunderbird</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

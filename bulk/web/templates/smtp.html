@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %} — SMTP{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>SMTP Presets</h1>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Configured Servers <span class="count">{{ smtps|length }}</span></h3>
+    </div>
+
+    {% if smtps %}
+    {% for s in smtps %}
+    <details>
+        <summary>
+            <strong>{{ s.name }}</strong>
+            <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                {% if s.get('send_mode') == 'ses_api' %}
+                <span class="badge badge-running" title="AWS SES v2 SendEmail via HTTPS">SES-API</span>
+                <span style="font-size:12px;color:var(--fg2);font-family:monospace">{{ s.get('ses_region','?') }}</span>
+                {% else %}
+                <span class="badge badge-info">{{ s.get('provider_type','generic') }}</span>
+                <span style="font-size:12px;color:var(--fg2)">{{ s.host }}:{{ s.port }}</span>
+                {% endif %}
+                <span style="font-size:12px;color:var(--fg2)">{{ "{:,}".format(s.sent_today or 0) }} / {{ "{:,}".format(s.daily_limit) }}</span>
+                {% if s.get('send_mode') != 'ses_api' and s.get('proxy','') %}
+                <span class="badge badge-{{ 'running' if s.get('proxy_required') else 'draft' }}">
+                    {{ 'Killswitch' if s.get('proxy_required') else 'Proxy' }}
+                </span>
+                {% endif %}
+            </span>
+        </summary>
+        <div class="details-body" style="padding-top:12px">
+            <form method="post" action="/smtp/{{ s.id }}/save">
+                <div class="grid-2">
+                    <div>
+                        <label>Name</label>
+                        <input name="name" value="{{ s.name }}" required>
+
+                        <label>Host</label>
+                        <input name="host" value="{{ s.host }}" required>
+
+                        <label>Port</label>
+                        <input name="port" type="number" value="{{ s.port }}">
+
+                        <label>Username</label>
+                        <input name="username" value="{{ s.username }}" required>
+
+                        <label>Password</label>
+                        <input name="password" type="password" placeholder="Leave empty to keep current">
+                        <div class="form-help">Only fill in if you want to change the password</div>
+                    </div>
+                    <div>
+                        <label>Provider Type</label>
+                        <select name="provider_type">
+                            {% for p in ['generic','ses','sendgrid','mailgun','postmark'] %}
+                            <option value="{{ p }}" {{ 'selected' if s.get('provider_type','generic') == p }}>{{ p }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <label>Daily Limit</label>
+                        <input name="daily_limit" type="number" value="{{ s.daily_limit }}">
+
+                        <label>Threads per SMTP</label>
+                        <input name="threads_per_smtp" type="number" value="{{ s.get('threads_per_smtp', 1) or 1 }}" min="1" max="50">
+                        <div class="form-help">Parallel connections to this SMTP. 1 = sequential (safe). 3-5 = faster but check provider limits.</div>
+
+                        <label>SOCKS5 Proxy</label>
+                        <input name="proxy" value="{{ s.get('proxy','') or '' }}" placeholder="socks5://ip:port:user:pass">
+
+                        <div style="margin-top:12px">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                                <input type="checkbox" name="proxy_required" value="1"
+                                       {{ 'checked' if s.get('proxy_required') }} style="width:auto">
+                                <span>Proxy Killswitch</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <button class="btn btn-primary btn-sm">Save</button>
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            hx-post="/smtp/{{ s.id }}/test"
+                            hx-target="#smtp-test-{{ s.id }}"
+                            hx-swap="innerHTML">Test Connection</button>
+                    <form method="post" action="/smtp/{{ s.id }}/delete"
+                          onsubmit="return confirm('Delete {{ s.name }}?')">
+                        <button class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                    <div id="smtp-test-{{ s.id }}" style="margin-left:8px"></div>
+                </div>
+            </form>
+        </div>
+    </details>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">&#9993;</div>
+        <p>No SMTP servers configured. Add one below.</p>
+    </div>
+    {% endif %}
+</div>
+
+<details style="margin-top:12px">
+    <summary>Add SES-API Accounts (IAM) — Bulk</summary>
+    <div class="details-body" style="padding-top:16px">
+        <p class="muted" style="font-size:12px">
+            AWS SES v2 SendEmail über HTTPS statt SMTP. Nutzt Simple-Content
+            (SES baut MIME nach ihrem zustelloptimierten Schema). Attachments
+            + CID-Inline + <code>List-Unsubscribe</code>-Header werden aus dem
+            gebauten Template durchgereicht.
+            IAM-User braucht <code>ses:SendEmail</code> + <code>ses:GetAccount</code>.
+        </p>
+        <form method="post" action="/smtp/import-ses"
+              hx-post="/smtp/import-ses" hx-target="#ses-import-result" hx-swap="innerHTML">
+            <label>Accounts (IAM_KEY,IAM_SECRET[,region[,config_set[,name]]] — pro Zeile)</label>
+            <textarea name="ses_text" rows="5" style="font-family:monospace;font-size:12px"
+                      placeholder="AKIAXXXXXXXX,secretaccesskey&#10;AKIAYYYYYYYY,secretaccesskey,eu-central-1,my-config-set,SES-Frankfurt"
+                      required></textarea>
+            <div class="grid-2" style="margin-top:6px">
+                <div>
+                    <label>Default Region</label>
+                    <input name="region" value="eu-central-1" placeholder="eu-central-1">
+                </div>
+                <div>
+                    <label>Default Configuration Set (optional)</label>
+                    <input name="config_set" placeholder="leer = keins">
+                </div>
+            </div>
+            <div>
+                <label>Daily Limit (0 = unlimited)</label>
+                <input name="daily_limit" type="number" value="50000">
+            </div>
+            <div style="margin-top:12px">
+                <button class="btn btn-primary">Import SES Accounts</button>
+            </div>
+        </form>
+        <div id="ses-import-result" style="margin-top:10px"></div>
+    </div>
+</details>
+
+<details {{ 'open' if not smtps }}>
+    <summary>Add SMTP Server</summary>
+    <div class="details-body" style="padding-top:16px">
+        <form method="post" action="/smtp/add">
+            <div class="grid-2">
+                <div>
+                    <label>Preset Name</label>
+                    <input name="name" placeholder="e.g. SES Frankfurt" required>
+
+                    <label>SMTP Host</label>
+                    <input name="host" placeholder="email-smtp.eu-central-1.amazonaws.com" required>
+
+                    <label>Port</label>
+                    <input name="port" type="number" value="587">
+
+                    <label>Username</label>
+                    <input name="username" placeholder="SMTP username" required>
+                </div>
+                <div>
+                    <label>Password</label>
+                    <input name="password" type="password" required>
+
+                    <label>Provider Type</label>
+                    <select name="provider_type">
+                        <option value="generic">Generic SMTP</option>
+                        <option value="ses">Amazon SES</option>
+                        <option value="sendgrid">SendGrid</option>
+                        <option value="mailgun">Mailgun</option>
+                        <option value="postmark">Postmark</option>
+                    </select>
+
+                    <label>Daily Limit</label>
+                    <input name="daily_limit" type="number" value="50000">
+                    <div class="form-help">0 = unlimited</div>
+
+                    <label>Threads per SMTP</label>
+                    <input name="threads_per_smtp" type="number" value="1" min="1" max="50">
+                    <div class="form-help">1 = sequential. Higher = parallel connections for faster sending.</div>
+
+                    <label>SOCKS5 Proxy</label>
+                    <input name="proxy" placeholder="socks5://ip:port:user:pass">
+
+                    <div style="margin-top:12px">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                            <input type="checkbox" name="proxy_required" value="1" style="width:auto">
+                            <span>Proxy Killswitch — block sending if proxy is down</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:16px">
+                <button class="btn btn-primary">Add SMTP Server</button>
+            </div>
+        </form>
+    </div>
+</details>
+{% endblock %}

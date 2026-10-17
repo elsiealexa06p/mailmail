@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %} — SMTP{% endblock %}
+{% block content %}
+<div class="page-header"><h1>SMTP Lists</h1></div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Lists <span class="count">{{ smtp_lists|length }}</span></h3>
+        {% if smtp_lists|length > 1 %}
+        <form method="post" action="/smtps/merge-all" onsubmit="return confirm('Create a merged list from all current lists?')"
+              style="display:flex;gap:6px;align-items:center;margin-left:auto">
+            <input name="name" placeholder="Merged list name" required style="margin:0;max-width:200px">
+            <button class="btn btn-secondary btn-sm" title="Combine all SMTPs from every list into a new list (dedupes host+port+user)">Merge All Lists</button>
+        </form>
+        {% endif %}
+    </div>
+    {% if smtp_lists %}
+    {% for sl in smtp_lists %}
+    <details ontoggle="if(this.open){var t=this.querySelector('.smtp-rows-lazy');if(t&&t.dataset.loaded!=='1'){t.dataset.loaded='1';htmx.trigger(t,'load-now')}}">
+        <summary>
+            <strong>{{ sl.name }}</strong>
+            <span style="margin-left:auto"><span class="badge badge-info">{{ sl.count }} accounts</span></span>
+        </summary>
+        <div class="details-body" style="padding-top:12px">
+            {% if sl.count %}
+            <div class="smtp-rows-lazy"
+                 hx-get="/smtps/{{ sl.id }}/rows"
+                 hx-trigger="load-now"
+                 hx-swap="innerHTML"
+                 style="min-height:40px;margin-bottom:12px">
+                <span class="muted" style="font-size:12px">lade {{ sl.count }} Einträge…</span>
+            </div>
+            {% endif %}
+
+            <div class="tabs" style="margin-bottom:8px">
+                <button class="tab-btn active" onclick="showTab('imp-tabs-{{ sl.id }}', 'imp-smtp-{{ sl.id }}')">Klassisch SMTP</button>
+                <button class="tab-btn" onclick="showTab('imp-tabs-{{ sl.id }}', 'imp-ses-{{ sl.id }}')">SES-API (IAM)</button>
+            </div>
+            <div id="imp-tabs-{{ sl.id }}">
+                <div id="imp-smtp-{{ sl.id }}" class="tab-content active">
+                    <form hx-post="/smtps/{{ sl.id }}/import" hx-target="#import-{{ sl.id }}" hx-swap="innerHTML">
+                        <label>Import SMTPs — Format wird auto-erkannt</label>
+                        <textarea name="smtp_text" rows="4" placeholder="smtp.gmail.com,587,user@gmail.com,password&#10;oder Pipe-Export:&#10;host.tld|465|15|1|1|true|1|0|1|0|user@x.de|passwort|0|1|0|20|5|||||||||0||" style="font-family:monospace;font-size:12px"></textarea>
+                        <div class="form-help" style="font-size:11px;margin-top:4px">
+                            CSV: <code>host,port,user,pass</code> · Pipe-Export
+                            (SmtpChecker & Co, viele Felder): Host/Port/User/Pass werden
+                            automatisch extrahiert.
+                        </div>
+                        <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Import SMTPs</button></div>
+                    </form>
+                </div>
+                <div id="imp-ses-{{ sl.id }}" class="tab-content">
+                    <form hx-post="/smtps/{{ sl.id }}/import-ses" hx-target="#import-{{ sl.id }}" hx-swap="innerHTML">
+                        <label>SES-IAM (AccessKey,Secret[,Region[,ConfigSet]] — pro Zeile)</label>
+                        <textarea name="ses_text" rows="4" placeholder="AKIAXXXXXXXX,secretaccesskey&#10;AKIAYYYYYYYY,secretaccesskey,eu-central-1,my-config-set" style="font-family:monospace;font-size:12px"></textarea>
+                        <div class="grid-2" style="margin-top:6px">
+                            <div>
+                                <label>Default Region</label>
+                                <input name="region" value="eu-central-1" placeholder="eu-central-1">
+                            </div>
+                            <div>
+                                <label>Default Configuration Set (optional)</label>
+                                <input name="config_set" placeholder="leer = keins">
+                            </div>
+                        </div>
+                        <p class="form-help" style="font-size:11px;margin-top:6px">
+                            IAM-User braucht <code>ses:SendEmail</code> + <code>ses:GetAccount</code>.
+                            Nutzt SES v2 <strong>Simple</strong>-Content (SES baut MIME nach ihrem
+                            deliverability-optimierten Schema). <code>List-Unsubscribe</code> +
+                            <code>X-*</code>-Header, PDF-Attachments und CID-Inline-Bilder werden
+                            aus dem Template durchgereicht (Simple.Attachments seit AWS 2025).
+                            Limits: 40 MB pro Mail inkl. base64-Overhead.
+                        </p>
+                        <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Import SES Accounts</button></div>
+                    </form>
+                </div>
+            </div>
+            <form method="post" action="/smtps/{{ sl.id }}/import-file" enctype="multipart/form-data" style="margin-top:8px;display:flex;gap:8px;align-items:flex-end">
+                <div style="flex:1">
+                    <label>Or upload .txt file</label>
+                    <input type="file" name="file" accept=".txt,.csv" required>
+                </div>
+                <button class="btn btn-primary btn-sm">Upload</button>
+            </form>
+            <div id="import-{{ sl.id }}" style="margin-top:8px"></div>
+            <div class="btn-group" style="margin-top:12px;flex-wrap:wrap">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="runSmtpCheck({{ sl.id }})">Check All</button>
+                <form method="post" action="/smtps/list/{{ sl.id }}/delete" onsubmit="return confirm('Delete list + all SMTPs?')" style="display:inline">
+                    <button class="btn btn-danger btn-sm">Delete List</button>
+                </form>
+            </div>
+        </div>
+    </details>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state"><div class="icon">&#9993;</div><p>No SMTP lists. Create one below.</p></div>
+    {% endif %}
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <details {{ 'open' if not smtp_lists }}>
+        <summary>Create SMTP List</summary>
+        <div class="details-body" style="padding-top:12px">
+            <form method="post" action="/smtps/create-list">
+                <label>List Name</label>
+                <input name="name" placeholder="e.g. SES Frankfurt, Gmail Pool" required>
+                <div style="margin-top:10px"><button class="btn btn-primary">Create</button></div>
+            </form>
+        </div>
+    </details>
+    <div class="card">
+        <h3>Bulk Checker</h3>
+        <div class="grid-2">
+            <div>
+                <label>Threads</label>
+                <input name="check_threads" type="number" value="5" min="1" max="50" id="checker-threads">
+                <label>Proxy</label>
+                <select name="proxy_id" id="checker-proxy">
+                    <option value="0">Active config proxy</option>
+                    {% for p in db.get_proxies() %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                    <input type="checkbox" id="checker-send-test" style="width:auto"
+                           onchange="document.getElementById('checker-test-opts').style.display=this.checked?'block':'none'">
+                    <span>Send test email from each valid SMTP</span>
+                </label>
+                <div id="checker-test-opts" style="display:none">
+                    <label>Send To</label>
+                    <input id="checker-test-to" placeholder="test@inbox.com">
+                    <label>Subject</label>
+                    <input id="checker-test-subject" value="SMTP Check">
+                    <label>From Name</label>
+                    <input id="checker-test-from" value="Test">
+                </div>
+            </div>
+        </div>
+        <div class="form-help" style="margin-top:8px">Select a list above and click "Check All".</div>
+        <div id="check-results" style="margin-top:12px"></div>
+    </div>
+</div>
+<script>
+let _smtpCheckPollTimer = null;
+function _smtpCheckPoll() {
+    fetch('/smtps/check-results').then(r => r.text()).then(html => {
+        const el = document.getElementById('check-results');
+        if (!el) { clearInterval(_smtpCheckPollTimer); _smtpCheckPollTimer = null; return; }
+        el.innerHTML = html;
+        // Server rendert weiter mit "Checking..." Badge solange läuft.
+        // Wenn "Done" oder leer → stop polling.
+        if (!/Checking\.\.\./i.test(html)) {
+            clearInterval(_smtpCheckPollTimer);
+            _smtpCheckPollTimer = null;
+        }
+    }).catch(() => { clearInterval(_smtpCheckPollTimer); _smtpCheckPollTimer = null; });
+}
+function runSmtpCheck(lid) {
+    const data = new URLSearchParams({
+        check_threads: document.getElementById('checker-threads').value,
+        proxy_id: document.getElementById('checker-proxy').value,
+        send_test: document.getElementById('checker-send-test').checked ? 1 : 0,
+        test_to: (document.getElementById('checker-test-to') || {}).value || '',
+        test_subject: (document.getElementById('checker-test-subject') || {}).value || 'SMTP Test',
+        test_from_name: (document.getElementById('checker-test-from') || {}).value || 'Test'
+    });
+    fetch('/smtps/' + lid + '/check-all', { method: 'POST', body: data,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    .then(r => r.text())
+    .then(html => {
+        document.getElementById('check-results').innerHTML = html;
+        // Polling nur solange ein Check aktiv läuft
+        if (_smtpCheckPollTimer) clearInterval(_smtpCheckPollTimer);
+        _smtpCheckPollTimer = setInterval(_smtpCheckPoll, 2000);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %} — {{ list_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>{{ list_name }} <span class="subtitle">{{ "{:,}".format(stats.total) }} leads</span></h1>
+    <a href="/lists" class="btn btn-secondary btn-sm">Back to Lists</a>
+</div>
+
+<div class="grid-4" style="margin-bottom:20px">
+    <div class="metric"><div class="value">{{ "{:,}".format(stats.PENDING) }}</div><div class="label">Pending</div></div>
+    <div class="metric"><div class="value" style="color:var(--green)">{{ "{:,}".format(stats.SENT) }}</div><div class="label">Sent</div></div>
+    <div class="metric"><div class="value" style="color:var(--red)">{{ "{:,}".format(stats.FAILED) }}</div><div class="label">Failed</div></div>
+    <div class="metric"><div class="value">{{ "{:,}".format(stats.EXCLUDED) }}</div><div class="label">Excluded</div></div>
+</div>
+
+<div class="card">
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <form method="get" action="/lists/{{ lid }}/leads" style="display:flex;gap:8px;flex:1;min-width:250px">
+            <input name="q" value="{{ query }}" placeholder="Search emails..." style="flex:1;margin:0">
+            <button class="btn btn-primary btn-sm">Search</button>
+        </form>
+        <form method="post" action="/lists/{{ lid }}/delete-domain" style="display:flex;gap:8px">
+            <input name="domain" placeholder="domain.com" style="width:160px;margin:0">
+            <button class="btn btn-danger btn-sm">Delete @domain</button>
+        </form>
+    </div>
+
+    {% if leads %}
+    <table>
+        <thead><tr><th style="width:60px">ID</th><th>Email</th><th style="width:100px">State</th></tr></thead>
+        <tbody>
+        {% for l in leads %}
+        <tr>
+            <td style="color:var(--fg2)">{{ l.id }}</td>
+            <td style="font-family:monospace;font-size:12px">{{ l.email }}</td>
+            <td><span class="badge badge-{{ l.state|lower }}">{{ l.state }}</span></td>
+        </tr>
+        {% endfor %}
+        {% if leads|length >= 500 %}
+        <tr><td colspan="3" style="color:var(--fg2);font-size:12px;text-align:center">Showing first 500 results</td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No leads found{% if query %} matching "{{ query }}"{% endif %}.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

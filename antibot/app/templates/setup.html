@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>antibot — Ersteinrichtung</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="full">
+<div class="setup-wrap">
+    <h1>antibot &mdash; Ersteinrichtung</h1>
+    <p class="muted">Läuft einmalig. Danach ist das Panel unter <code>/admin</code> erreichbar.</p>
+
+    {% if request.query_params.get('e') == 'bad' %}
+    <div class="alert alert-danger">Passwörter stimmen nicht überein oder sind zu kurz (min. 8 Zeichen).</div>
+    {% elif request.query_params.get('e') == 'target' %}
+    <div class="alert alert-danger">Default-Ziel muss mit http:// oder https:// beginnen.</div>
+    {% endif %}
+
+    <form method="post" action="/setup" enctype="multipart/form-data">
+        <fieldset>
+            <legend>1. Admin</legend>
+            <label>Username</label>
+            <input name="username" required>
+            <label>Passwort (min. 8 Zeichen)</label>
+            <input name="password" type="password" required minlength="8">
+            <label>Passwort bestätigen</label>
+            <input name="password2" type="password" required minlength="8">
+        </fieldset>
+
+        <fieldset>
+            <legend>2. HMAC-Secret</legend>
+            <p class="muted">Wurde bereits generiert. Diesen String im Mailer unter <code>/antibot-config</code> als Shared-Secret eintragen — nur damit können Mailer-Links vom Gate akzeptiert werden.</p>
+            <textarea readonly rows="2" onclick="this.select()" style="font-family:monospace;font-size:12px">{{ hmac_secret_preview }}</textarea>
+        </fieldset>
+
+        <fieldset>
+            <legend>3. Default-Redirect-Ziel</legend>
+            <label>Fallback-URL (wenn ein Token keins mitbringt)</label>
+            <input name="default_target" placeholder="https://deine-ziel-domain.de" required>
+        </fieldset>
+
+        <fieldset>
+            <legend>4. Branding (Challenge-Seite)</legend>
+            <label>Logo (PNG / JPG / WEBP / SVG)</label>
+            <input name="logo" type="file" accept="image/*">
+            <label>Wartetext</label>
+            <input name="brand_text" value="Sicherheitsprüfung läuft …">
+            <label>Primary Color</label>
+            <input name="brand_color" type="color" value="#005eb8" style="width:60px;height:34px">
+        </fieldset>
+
+        <fieldset>
+            <legend>5. Score-Schwellwerte</legend>
+            <div class="grid-2">
+                <div>
+                    <label>Allow &lt; (default 40)</label>
+                    <input name="threshold_allow" type="number" value="40" min="0" max="100">
+                </div>
+                <div>
+                    <label>Block ≥ (default 70)</label>
+                    <input name="threshold_block" type="number" value="70" min="0" max="100">
+                </div>
+            </div>
+            <p class="muted">Zwischen den beiden Werten wird die Challenge ausgeliefert. Dry-Run ist am Anfang AN — nichts wird tatsächlich blockiert, nur geloggt. In Settings kannst du das umschalten sobald du deine Zahlen im Log-Feed geprüft hast.</p>
+        </fieldset>
+
+        <fieldset>
+            <legend>6. API Keys (optional)</legend>
+            <label>Cloudflare Turnstile — Site Key</label>
+            <input name="turnstile_site_key" placeholder="0x4AAA…">
+            <label>Cloudflare Turnstile — Secret Key</label>
+            <input name="turnstile_secret_key" placeholder="0x4AAA…" type="password">
+            <label>MaxMind GeoIP2 Lizenz-Key (optional, für präzisere ASN-Daten)</label>
+            <input name="maxmind_license_key" placeholder="" type="password">
+            <label>Webhook-URL für harte Blocks (Discord/Slack/Telegram)</label>
+            <input name="webhook_url" placeholder="https://discord.com/api/webhooks/…">
+        </fieldset>
+
+        <div style="margin-top:20px">
+            <button type="submit" class="btn btn-primary">Einrichtung abschließen</button>
+        </div>
+    </form>
+</div>
+</body>
+</html>

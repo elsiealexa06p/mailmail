@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %} — Antibot{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Antibot Integration</h1></div>
+
+<div class="card">
+    <div class="card-header"><h3>Setup</h3></div>
+    {% if request.query_params.get('saved') %}
+    <div class="alert alert-success">Gespeichert.</div>
+    {% endif %}
+    <p style="font-size:13px;color:var(--fg2)">
+        Wenn aktiv, wickelt der share.google-Generator jede Ziel-URL vorher in ein
+        HMAC-signiertes Antibot-Token ein. Google speichert dann intern die
+        <code>guard.deinedomain.de/go/&lt;token&gt;</code>-URL als share.google-Ziel,
+        nicht die echte Landing-Page.
+        Der Empfänger klickt <code>share.google/xyz</code> &rarr; Google redirected auf antibot
+        &rarr; antibot prüft &rarr; wenn Mensch, 302 zum echten Ziel.
+    </p>
+
+    <form method="post" action="/antibot-config">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer">
+            <input type="checkbox" name="antibot_enabled" value="1"
+                   {% if cfg.antibot_enabled %}checked{% endif %} style="margin:0;width:auto">
+            <strong>Antibot für share.google-Redirects aktivieren</strong>
+        </label>
+
+        <label style="margin-top:12px">Antibot Base-URL</label>
+        <input name="antibot_base_url" value="{{ cfg.antibot_base_url }}"
+               placeholder="https://guard.deinedomain.de">
+
+        <label>HMAC-Secret <span style="color:var(--fg2);font-size:11px">(aus Antibot-Wizard oder Settings kopieren)</span></label>
+        <input name="antibot_hmac_secret" type="password" value="{{ cfg.antibot_hmac_secret }}">
+
+        <label>Token-TTL (Stunden)</label>
+        <input name="antibot_token_ttl_hours" type="number" value="{{ cfg.antibot_token_ttl_hours }}"
+               min="1" max="8760" style="width:100px">
+        <div class="form-help">Wie lange bleibt ein einmal generierter Link gültig. 168h = 1 Woche. Nach Ablauf wird der Klick vom Antibot als 404 behandelt.</div>
+
+        <div style="margin-top:12px" class="btn-group">
+            <button class="btn btn-primary btn-sm">Speichern</button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-post="/antibot-config/test" hx-target="#test-result" hx-swap="innerHTML">
+                Verbindung testen
+            </button>
+            <span id="test-result" style="font-size:12px"></span>
+        </div>
+    </form>
+</div>
+
+{% if preview %}
+<div class="card">
+    <div class="card-header"><h3>Preview</h3></div>
+    <p style="font-size:12px;color:var(--fg2)">So sieht ein Token aus. Diese URL wird bei Google eingereicht, das dahinterstehende <code>share.google/xxx</code> landet im Mail-Body.</p>
+    <textarea readonly rows="3" onclick="this.select()" style="font-family:monospace;font-size:11px">{{ preview }}</textarea>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header"><h3>So funktionert's</h3></div>
+    <ol style="font-size:13px;line-height:1.6">
+        <li><strong>Aktivieren</strong> — Toggle oben AN, speichern.</li>
+        <li><strong>Redirects erzeugen wie bisher</strong> — auf <a href="/redirects" style="color:var(--accent)">/redirects</a> unter <em>Generate Redirects (Google Share)</em>. Jetzt wird für jeden Link automatisch die antibot-URL vorgeschaltet.</li>
+        <li><strong>Kampagne läuft</strong> — Empfänger klickt <code>share.google/…</code>, Google leitet auf antibot, antibot filtert Bots weg, echte Menschen kommen an.</li>
+        <li><strong>Antibot-Log</strong> zeigt dir welche Klicks tatsächlich Menschen waren.</li>
+    </ol>
+    <p style="font-size:12px;color:var(--fg2);margin-top:8px">
+        S3-Redirects sind davon <strong>nicht</strong> betroffen — die gehen weiter direkt aufs echte Ziel.
+    </p>
+</div>
+{% endblock %}

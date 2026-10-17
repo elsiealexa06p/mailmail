@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% set active = "domains" %}
+{% block content %}
+<div class="page-header"><h1>Domains</h1></div>
+
+<div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border-light);padding-bottom:6px">
+    <a href="/admin/domains?tab=dynadot"    class="btn btn-secondary btn-sm{% if tab == 'dynadot' %} btn-primary{% endif %}">Dynadot</a>
+    <a href="/admin/domains?tab=cloudflare" class="btn btn-secondary btn-sm{% if tab == 'cloudflare' %} btn-primary{% endif %}">Cloudflare</a>
+    <a href="/admin/domains?tab=combined"   class="btn btn-secondary btn-sm{% if tab == 'combined' %} btn-primary{% endif %}">Pipeline (Kauf &rarr; Deploy)</a>
+</div>
+
+{% if tab == 'dynadot' %}
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Dynadot API</h3>
+        {% if request.query_params.get('saved') and tab == 'dynadot' %}
+        <div class="alert alert-success">✓ Gespeichert.</div>
+        {% endif %}
+        <form method="post" action="/admin/domains/dynadot/save" autocomplete="off">
+            <label>API-Key
+                {% if cfg.dynadot_api_key %}<span class="v-allow" style="font-size:11px">✓ gesetzt ({{ cfg.dynadot_api_key[-4:] }})</span>
+                {% else %}<span class="v-block" style="font-size:11px">nicht gesetzt</span>{% endif %}
+            </label>
+            <input name="api_key" type="password" autocomplete="off"
+                   placeholder="{% if cfg.dynadot_api_key %}[leer lassen zum Behalten, neu tippen zum Ändern]{% else %}Dynadot API-Key hier{% endif %}">
+
+            <label>API-Secret
+                {% if cfg.dynadot_api_secret %}<span class="v-allow" style="font-size:11px">✓ gesetzt</span>
+                {% else %}<span class="muted" style="font-size:11px">(optional, nur wenn Konto „API secret" aktiv hat)</span>{% endif %}
+            </label>
+            <input name="api_secret" type="password" autocomplete="off"
+                   placeholder="{% if cfg.dynadot_api_secret %}[leer lassen zum Behalten, neu tippen zum Ändern]{% else %}Dynadot API-Secret (optional){% endif %}">
+
+            <label>Kauf-Währung</label>
+            <select name="buy_currency">
+                {% for c in ['USD','EUR','GBP','JPY','CNY','CAD','AUD'] %}
+                <option value="{{ c }}" {% if cfg.buy_currency == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-primary btn-sm" style="margin-top:8px">Speichern</button>
+        </form>
+        {% if cfg.dynadot_api_key %}
+        <p class="muted" style="margin-top:12px">Kontostand: <strong>{{ dyn_balance }}</strong></p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>Domain-Suche + Kauf</h3>
+        {% if cfg.dynadot_api_key %}
+        <form hx-post="/admin/domains/dynadot/search" hx-target="#dyn-search-result" hx-swap="innerHTML">
+            <label>Domains (eine pro Zeile oder kommagetrennt, max 20)</label>
+            <textarea name="domains" rows="4" placeholder="deinedomain.de&#10;anotherone.com" style="font-family:monospace"></textarea>
+            <button class="btn btn-primary btn-sm">Prüfen</button>
+        </form>
+        <div id="dyn-search-result" style="margin-top:12px"></div>
+        {% else %}
+        <p class="muted">Erst API-Key speichern.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if dyn_domains %}
+<div class="card" style="margin-top:16px">
+    <h3>Deine Dynadot-Domains ({{ dyn_domains|length }})</h3>
+    <table style="font-size:12px">
+        <thead><tr><th>Domain</th><th>Expiry</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for d in dyn_domains[:100] %}
+        <tr>
+            <td style="font-family:monospace">{{ d.get('Name', d.get('name', '?')) }}</td>
+            <td>{{ d.get('Expiration', d.get('expiration', '')) }}</td>
+            <td>{{ d.get('Status', d.get('status', '')) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+{% endif %}
+
+{% if tab == 'cloudflare' %}
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Cloudflare API</h3>
+        {% if request.query_params.get('saved') and tab == 'cloudflare' %}
+        <div class="alert alert-success">✓ Gespeichert.</div>
+        {% endif %}
+        <p class="muted" style="font-size:12px;margin-top:0">
+            Entweder <strong>Global API Key + Auth-Email</strong> (voller Kontozugriff) ODER
+            <strong>Bearer-Token</strong> (feiner scoped). Wenn beides gesetzt, wird Global-Key bevorzugt.
+        </p>
+        <form method="post" action="/admin/domains/cf/save" autocomplete="off">
+            <fieldset style="border:1px solid #d0e8ff;border-radius:4px;padding:10px 14px;margin-bottom:10px">
+                <legend style="font-size:12px">Global API Key (empfohlen)</legend>
+                <label>Global API Key
+                    {% if cfg.cloudflare_global_api_key %}<span class="v-allow" style="font-size:11px">✓ gesetzt ({{ cfg.cloudflare_global_api_key[-4:] }})</span>
+                    {% else %}<span class="v-block" style="font-size:11px">nicht gesetzt</span>{% endif %}
+                </label>
+                <input name="global_api_key" type="password" autocomplete="off"
+                       placeholder="{% if cfg.cloudflare_global_api_key %}[leer lassen zum Behalten, neu tippen zum Ändern]{% else %}Global API Key aus CF Dashboard{% endif %}">
+                <label>Auth-Email <span class="muted">(deine CF-Account-Email)</span></label>
+                <input name="auth_email" type="email" value="{{ cfg.cloudflare_auth_email }}">
+            </fieldset>
+            <fieldset style="border:1px solid #eee;border-radius:4px;padding:10px 14px;margin-bottom:10px">
+                <legend style="font-size:12px">ODER: Scoped Bearer-Token</legend>
+                <label>API-Token
+                    {% if cfg.cloudflare_api_token %}<span class="v-allow" style="font-size:11px">✓ gesetzt ({{ cfg.cloudflare_api_token[-4:] }})</span>
+                    {% else %}<span class="muted" style="font-size:11px">nicht gesetzt</span>{% endif %}
+                </label>
+                <input name="api_token" type="password" autocomplete="off"
+                       placeholder="{% if cfg.cloudflare_api_token %}[leer lassen zum Behalten, neu tippen zum Ändern]{% else %}Zone.Zone Edit + Zone.DNS Edit + Account.Zone Create{% endif %}">
+            </fieldset>
+            <label>Account-ID <span class="muted">(nur nötig um neue Zonen anzulegen)</span></label>
+            <input name="account_id" value="{{ cfg.cloudflare_account_id }}">
+            <button class="btn btn-primary btn-sm" style="margin-top:8px">Speichern</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Bestehende Domain als CF-Zone hinzufügen</h3>
+        {% if cfg.cloudflare_api_token or (cfg.cloudflare_global_api_key and cfg.cloudflare_auth_email) %}
+        <form hx-post="/admin/domains/cf/add-zone" hx-target="#cf-add-result" hx-swap="innerHTML">
+            <label>Domain (bei anderem Registrar liegend)</label>
+            <input name="name" placeholder="deinedomain.de" required>
+            <button class="btn btn-primary btn-sm">Zone anlegen</button>
+        </form>
+        <div id="cf-add-result" style="margin-top:8px"></div>
+        {% elif cfg.cloudflare_global_api_key and not cfg.cloudflare_auth_email %}
+        <p class="muted" style="color:var(--red)">Auth-Email fehlt — Global API Key braucht immer die zugehörige Cloudflare-Account-Email.</p>
+        {% else %}
+        <p class="muted">Erst CF Global-Key + Auth-Email ODER API-Token speichern.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if cf_zones %}
+<div class="card" style="margin-top:16px">
+    <h3>Zones ({{ cf_zones|length }})</h3>
+    <table style="font-size:12px">
+        <thead><tr><th>Domain</th><th>Status</th><th>Plan</th><th>Nameserver</th><th></th></tr></thead>
+        <tbody>
+        {% for z in cf_zones %}
+        <tr>
+            <td style="font-family:monospace">{{ z.name }}</td>
+            <td>{% if z.status == 'active' %}<span class="v-allow">active</span>{% else %}<span class="v-chal">{{ z.status }}</span>{% endif %}</td>
+            <td>{{ z.plan.name if z.plan else '—' }}</td>
+            <td style="font-family:monospace;font-size:10px">
+                {% for ns in z.name_servers %}{{ ns }}<br>{% endfor %}
+            </td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-secondary btn-xs"
+                        hx-get="/admin/domains/cf/zone/{{ z.id }}"
+                        hx-target="#zone-view" hx-swap="innerHTML">Records</button>
+                <button class="btn btn-success btn-xs"
+                        hx-get="/admin/domains/cf/zone/{{ z.id }}/deploy-form"
+                        hx-target="#zone-view" hx-swap="innerHTML">Als Gate deployen</button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p class="muted" style="margin-top:8px;font-size:11px">
+        „Als Gate deployen": setzt A @ + www auf deine Server-IP (Voraussetzung: Server-IP im
+        Pipeline-Tab konfiguriert), erstellt optional ein Turnstile-Widget, legt ein Antibot-Gate
+        an und generiert Ready-Links. Perfekt für Domains die du hier manuell hinzugefügt hast.
+    </p>
+</div>
+<div id="zone-view" class="card" style="margin-top:12px"></div>
+{% endif %}
+
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+{% endif %}
+
+{% if tab == 'combined' %}
+<div class="card">
+    <h3>Full-Pipeline: Suchen &rarr; Kaufen &rarr; DNS &rarr; Turnstile &rarr; Gate &rarr; Ready-Links</h3>
+    <p class="muted" style="margin-bottom:6px">
+        Ende-zu-Ende Setup einer neuen Gate-Domain in einem Rutsch.
+        <br>
+        <strong>Voraussetzungen (siehe Tabs „Dynadot" &amp; „Cloudflare"):</strong>
+        Dynadot-Key {% if cfg.dynadot_api_key %}<span class="v-allow">✓</span>{% else %}<span class="v-block">fehlt</span>{% endif %} ·
+        Cloudflare {% if cfg.cloudflare_api_token or (cfg.cloudflare_global_api_key and cfg.cloudflare_auth_email) %}<span class="v-allow">✓</span>{% else %}<span class="v-block">fehlt</span>{% endif %} ·
+        Turnstile {% if cfg.cloudflare_account_id %}<span class="v-allow">✓ (Account-ID gesetzt)</span>{% else %}<span class="v-block">Account-ID fehlt</span>{% endif %}
+    </p>
+
+    <div style="padding:8px 10px;background:#f5f5fa;border-radius:4px;margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:400;font-size:12px;margin:0">
+            <span>Server-Public-IP:</span>
+            {% if cfg.server_public_ip %}
+            <code style="color:var(--green)">{{ cfg.server_public_ip }}</code> ✓
+            {% else %}
+            <span style="color:var(--red)">nicht ermittelt</span>
+            {% endif %}
+            <input type="text" name="server_ip_manual" placeholder="1.2.3.4 (manuell)"
+                   style="width:130px;padding:2px 6px;font-size:12px;margin:0">
+            <button type="button" class="btn btn-secondary btn-xs"
+                    hx-post="/admin/domains/set-server-ip"
+                    hx-target="#ip-set-result" hx-swap="innerHTML"
+                    hx-include="[name='server_ip_manual']"
+                    hx-vals='js:{"ip": document.querySelector("[name=server_ip_manual]").value}'>
+                Speichern
+            </button>
+            <button type="button" class="btn btn-secondary btn-xs"
+                    hx-post="/admin/domains/set-server-ip"
+                    hx-vals='{"ip":""}'
+                    hx-target="#ip-set-result" hx-swap="innerHTML">
+                Auto-detect nochmal
+            </button>
+            <span id="ip-set-result" style="font-size:11px"></span>
+        </label>
+        <div class="form-help" style="margin-top:4px">
+            Falls Auto-Detect nicht klappt (Hoster blockt Outbound zu Public-IP-APIs):
+            IP von Hand eintragen (die kennst du ja).
+        </div>
+    </div>
+
+    <fieldset>
+        <legend>Schritt 0: Precheck (empfohlen bevor du kaufst)</legend>
+        <p class="muted" style="font-size:12px;margin:0 0 8px">
+            Testet alle APIs read-only — Dynadot Balance-Call, CF Zone-List,
+            Turnstile-Endpunkt, Public-IP-Erkennung. Nichts wird gekauft/geändert.
+        </p>
+        <button type="button" class="btn btn-secondary btn-sm"
+                hx-post="/admin/domains/pipeline/precheck"
+                hx-target="#precheck-result" hx-swap="innerHTML">
+            Precheck ausführen
+        </button>
+        <div id="precheck-result" style="margin-top:10px"></div>
+    </fieldset>
+
+    <fieldset style="margin-top:16px">
+        <legend>Schritt 1: Domains suchen (Verfügbarkeit + Preis)</legend>
+        <form hx-post="/admin/domains/pipeline/search"
+              hx-target="#pipeline-search-result" hx-swap="innerHTML">
+            <label>Domains (eine pro Zeile oder kommagetrennt, max 20)</label>
+            <textarea name="domains" rows="5" placeholder="firma-x.de&#10;firma-x.com&#10;firma-x.net"
+                      style="font-family:monospace;font-size:12px"></textarea>
+            <button class="btn btn-primary btn-sm">Suchen</button>
+        </form>
+        <div id="pipeline-search-result" style="margin-top:12px"></div>
+    </fieldset>
+
+    <form hx-post="/admin/domains/pipeline/run"
+          hx-target="#pipeline-run-result" hx-swap="innerHTML"
+          hx-include="[name='pipeline_domain']"
+          hx-encoding="multipart/form-data"
+          hx-confirm="Pipeline wirklich starten? Bei aktivierter „Kaufen"-Option werden echte Domains gekauft (kostet Geld)."
+          style="margin-top:16px">
+        <div id="pipeline-selected-hint" class="muted" style="font-size:11px;margin-bottom:6px">
+            Die Domain-Auswahl kommt aus dem Suchergebnis oben (nur angehakte werden verarbeitet).
+        </div>
+
+        <fieldset>
+            <legend>Schritt 2: Pipeline-Config für die ausgewählten Domains</legend>
+            <div class="grid-2">
+                <div>
+                    <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+                        <input type="checkbox" name="buy_dynadot" value="1" checked
+                               {% if not cfg.dynadot_api_key %}disabled{% endif %}>
+                        <span>Bei Dynadot kaufen (falls noch nicht deins)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+                        <input type="checkbox" name="add_www" value="1" checked>
+                        <span>www.-Subdomain als A-Record dazu</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+                        <input type="checkbox" name="auto_turnstile" value="1"
+                               {% if not cfg.cloudflare_account_id %}disabled{% endif %}>
+                        <span>Turnstile-Widget via CF automatisch erstellen</span>
+                    </label>
+                </div>
+                <div>
+                    <label>Modus (für alle neuen Gates)</label>
+                    <select name="mode">
+                        {% for k, p in presets.items() %}
+                        <option value="{{ k }}" {% if k == 'medium' %}selected{% endif %}>{{ p.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <label>Ziel-URL(s) (für alle neuen Gates — mehrere = pro Klick random)</label>
+                    <textarea name="target_url" rows="3" required
+                              placeholder="https://real-landing.de/x&#10;https://backup-landing.de/y"
+                              style="font-family:monospace;font-size:12px"></textarea>
+                    <label>Ready-Links pro Gate</label>
+                    <input name="initial_links" type="number" value="10" min="0" max="500">
+                </div>
+            </div>
+
+            <fieldset style="margin-top:12px;padding:8px 12px;background:#f7faff;border-radius:4px">
+                <legend style="font-size:12px;font-weight:600">Brand-Look (für alle Domains dieses Runs identisch)</legend>
+                <div class="grid-2">
+                    <div>
+                        <label>Brand-Farbe (Buttons/Bar/Akzent)</label>
+                        <input type="color" name="brand_color" value="#005eb8" style="width:60px;height:32px;padding:2px">
+                        <span class="muted" style="font-size:11px;margin-left:8px">
+                            Leer/Default = globaler Wert aus Config
+                        </span>
+                    </div>
+                    <div>
+                        <label>Logo (Upload — PNG/JPG/WebP/SVG, max 2 MB)</label>
+                        <input type="file" name="logo_file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif">
+                        <div class="form-help">
+                            Wird nach <code>/static/logo/uploads/</code> gespeichert und für
+                            alle Domains dieses Runs als Gate-Logo gesetzt. Leer lassen =
+                            aktuelles Config-Logo behalten.
+                        </div>
+                    </div>
+                </div>
+                <label style="margin-top:4px">Brand-Text (Header vom Warteschirm)</label>
+                <input name="brand_text" placeholder="Sicherheitsprüfung läuft …">
+                <div class="form-help">
+                    Leer lassen = Fallback auf die globalen Werte aus Antibot-Config.
+                    Perfekt wenn du 5 Domains als Corporate-Set aufsetzen willst — alle
+                    kriegen automatisch dasselbe Corporate-Design.
+                </div>
+            </fieldset>
+
+            <div style="margin-top:12px;padding:8px 10px;background:#f0fff4;border-left:3px solid var(--green);font-size:11px">
+                &#128279; <strong>Ref-Forwarding:</strong> Das Antibot-Gate reicht
+                <code>?ref=</code>, <code>?u=</code> und alle <code>?utm_*</code>-Parameter
+                transparent an die Ziel-URL weiter. Der Mailer hängt die per Kampagne dran —
+                Empfänger klickt <code>https://guard.foo/go/xyz?ref=U123</code> →
+                Antibot filtert → 302 auf <code>&lt;target&gt;?ref=U123</code>. Ohne
+                zusätzliche Config.</div>
+        </fieldset>
+
+        <div style="margin-top:12px">
+            <button class="btn btn-primary">Pipeline für ausgewählte Domains starten</button>
+        </div>
+    </form>
+    <div id="pipeline-run-result" style="margin-top:16px"></div>
+
+    <div style="margin-top:20px;padding:10px;background:#fff8e6;border-left:3px solid #f2c74a;font-size:12px">
+        <strong>Cloudflare-Wolke:</strong> Die Pipeline setzt A-Records IMMER auf <em>grau (DNS only)</em>,
+        weil Caddy sonst kein Let's-Encrypt-Cert holen kann. <strong>Erst nachdem der Cert geholt wurde</strong>
+        (passiert automatisch beim ersten HTTPS-Request auf die neue Domain),
+        kannst du im Gate-Detail auf orange (proxied) umschalten — Button „CF-Wolke einschalten".
+    </div>
+</div>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+{% endif %}
+
+{% if tab != 'combined' %}
+{# Standalone-Zugriff auf den alten "combined/connect" Handler bleibt via URL erhalten #}
+{% endif %}
+{% endblock %}

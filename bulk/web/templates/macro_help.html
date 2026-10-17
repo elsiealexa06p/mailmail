@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %} — Macro Reference{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Macro Reference</h1>
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Built-in Variables</h3>
+        <table>
+            <thead><tr><th>Macro</th><th>Description</th><th>Example</th></tr></thead>
+            <tbody>
+                <tr><td><code style="color:var(--accent)">{email}</code></td><td>Full email address</td><td style="font-family:monospace;font-size:12px">john.doe@example.com</td></tr>
+                <tr><td><code style="color:var(--accent)">{email_user}</code></td><td>Local part</td><td style="font-family:monospace;font-size:12px">john.doe</td></tr>
+                <tr><td><code style="color:var(--accent)">{domain}</code></td><td>Domain part</td><td style="font-family:monospace;font-size:12px">example.com</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>Custom Macros</h3>
+        <p style="color:var(--fg2);font-size:13px;margin-bottom:10px">
+            Defined on the <a href="/macros" style="color:var(--accent);font-weight:500">Macros</a> page. Use <code>{name}</code> in subjects, from names, or HTML.
+        </p>
+        <table>
+            <thead><tr><th>Setting</th><th>Behavior</th></tr></thead>
+            <tbody>
+                <tr><td>Rotate = 0</td><td>Random pick each send</td></tr>
+                <tr><td>Rotate = N</td><td>Use value #1 for N sends, then #2 for N, etc.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Random Strings</h3>
+    <p style="color:var(--fg2);font-size:13px;margin-bottom:10px">
+        <code style="color:var(--accent)">[RANDSTR:length:charset:case]</code> — generates unique random strings per email.
+    </p>
+    <table>
+        <thead><tr><th>Example</th><th>Description</th><th>Output</th></tr></thead>
+        <tbody>
+            <tr><td><code>[RANDSTR:8:a-z:lower]</code></td><td>8 lowercase letters</td><td style="font-family:monospace">jfkwmxpq</td></tr>
+            <tr><td><code>[RANDSTR:12:a-z0-9:lower]</code></td><td>12 alphanumeric</td><td style="font-family:monospace">k3mf9x2wp4hn</td></tr>
+            <tr><td><code>[RANDSTR:6:A-Z0-9:upper]</code></td><td>6 uppercase alphanumeric</td><td style="font-family:monospace">X8K3MF</td></tr>
+            <tr><td><code>[RANDSTR:10:0-9:lower]</code></td><td>10 digits</td><td style="font-family:monospace">4829173650</td></tr>
+        </tbody>
+    </table>
+    <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:var(--radius);font-size:12px">
+        <strong>Charsets:</strong> <code>a-z</code> <code>A-Z</code> <code>0-9</code> <code>a-z0-9</code> <code>A-Z0-9</code> <code>a-zA-Z</code> <code>a-zA-Z0-9</code>
+        &nbsp;&nbsp;<strong>Case:</strong> <code>lower</code> <code>upper</code>
+    </div>
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Content Rotation</h3>
+        <table>
+            <thead><tr><th>Feature</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr><td style="font-weight:500">Subject Macro</td><td>Subject field supports all macros</td></tr>
+                <tr><td style="font-weight:500">HTML Rotation</td><td>Multiple HTML files, cycles every N sends</td></tr>
+                <tr><td style="font-weight:500">PDF Macro</td><td>Unique form fields per recipient</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>Example Usage</h3>
+        <div class="log" style="line-height:1.8">Subject: {greeting}, {email_user}
+From: {sender_name}
+
+&lt;p&gt;{greeting} {email_user},&lt;/p&gt;
+&lt;p&gt;{body_text}&lt;/p&gt;
+&lt;a href="https://example.com/t/[RANDSTR:16:a-zA-Z0-9:lower]"&gt;
+  Read More
+&lt;/a&gt;
+&lt;p&gt;{signoff}&lt;/p&gt;</div>
+    </div>
+</div>
+{% endblock %}

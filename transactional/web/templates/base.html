@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactional Mailer{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            {% if request.state.user and request.state.user.logo_path %}
+            <a href="/profile" style="display:block;margin-bottom:8px;text-align:center"><img src="{{ request.state.user.logo_path }}" style="max-width:140px;max-height:50px;object-fit:contain"></a>
+            {% else %}
+            <h2>Transactional</h2>
+            {% endif %}
+            {% if request.state.user and request.state.user.display_name %}
+            <small>{{ request.state.user.display_name }}</small>
+            {% else %}
+            <small>Mass Mailer Panel</small>
+            {% endif %}
+        </div>
+        <div class="sidebar-section">Campaign</div>
+        <a href="/campaigns" class="{{ 'active' if active == 'campaigns' }}"><span class="nav-icon">&#9654;</span><span>Campaign</span></a>
+        <div class="sidebar-section">Content</div>
+        <a href="/templates" class="{{ 'active' if active == 'templates' }}"><span class="nav-icon">&#9998;</span><span>HTML Editor</span></a>
+        <a href="/macros" class="{{ 'active' if active == 'macros' }}"><span class="nav-icon">{x}</span><span>Macros</span></a>
+        <a href="/snippets" class="{{ 'active' if active == 'snippets' }}"><span class="nav-icon">&#9635;</span><span>Snippets</span></a>
+        <a href="/pool" class="{{ 'active' if active == 'pool' }}" style="font-weight:600"><span class="nav-icon">&#127917;</span><span>Media Pool</span></a>
+        <a href="/logos" class="{{ 'active' if active == 'logos' }}" style="padding-left:28px;font-size:12px"><span class="nav-icon">&#128247;</span><span>Source-Logos</span></a>
+        <a href="/cloudinary" class="{{ 'active' if active == 'cloudinary' }}" style="padding-left:28px;font-size:12px"><span class="nav-icon">&#9729;</span><span>Cloudinary (Fine)</span></a>
+        <a href="/s3-logos" class="{{ 'active' if active == 's3_logos' }}" style="padding-left:28px;font-size:12px"><span class="nav-icon">&#9974;</span><span>S3 Logos (Fine)</span></a>
+        <a href="/redirects" class="{{ 'active' if active == 'redirects' }}"><span class="nav-icon">&#128279;</span><span>Redirects</span></a>
+        <a href="/antibot-config" class="{{ 'active' if active == 'antibot' }}"><span class="nav-icon">&#128737;</span><span>Antibot</span></a>
+        <a href="/htmlgen" class="{{ 'active' if active == 'htmlgen' }}"><span class="nav-icon">&#9881;</span><span>HTML Engine</span></a>
+        <a href="/htmlgen/builder" class="{{ 'active' if active == 'htmlgen_builder' }}" style="padding-left:28px;font-size:12px"><span class="nav-icon">&#9998;</span><span>HTML Builder</span></a>
+        <a href="/exporter" class="{{ 'active' if active == 'exporter' }}"><span class="nav-icon">&#128230;</span><span>HTML Exporter</span></a>
+        <a href="/ai" class="{{ 'active' if active == 'ai' }}"><span class="nav-icon">&#129302;</span><span>AI</span></a>
+        <a href="/testlab" class="{{ 'active' if active == 'testlab' }}"><span class="nav-icon">&#128300;</span><span>Test Lab</span></a>
+        <a href="/inboxtest" class="{{ 'active' if active == 'inboxtest' }}"><span class="nav-icon">&#128229;</span><span>Inbox Test</span></a>
+        <a href="/bounces" class="{{ 'active' if active == 'bounces' }}"><span class="nav-icon">&#128200;</span><span>Bounces</span></a>
+        <div class="sidebar-section">Data</div>
+        <a href="/smtps" class="{{ 'active' if active == 'smtps' }}"><span class="nav-icon">&#9993;</span><span>SMTP Lists</span></a>
+        <a href="/smtp-check" class="{{ 'active' if active == 'smtp_check' }}"><span class="nav-icon">&#10004;</span><span>SMTP Check</span></a>
+        <a href="/leads" class="{{ 'active' if active == 'leads' }}"><span class="nav-icon">&#9776;</span><span>Lead Lists</span></a>
+        <a href="/pools" class="{{ 'active' if active == 'pools' }}"><span class="nav-icon">&#127754;</span><span>Lead Pools</span></a>
+        <a href="/proxies" class="{{ 'active' if active == 'proxies' }}"><span class="nav-icon">&#128274;</span><span>Proxies</span></a>
+        <div class="sidebar-section">System</div>
+        <a href="/config" class="{{ 'active' if active == 'config' }}"><span class="nav-icon">&#9881;</span><span>Config</span></a>
+        <a href="/settings" class="{{ 'active' if active == 'settings' }}"><span class="nav-icon">&#9776;</span><span>Logs</span></a>
+        <div style="flex:1"></div>
+        <div style="border-top:1px solid var(--border-light);padding:10px 12px">
+            <a href="/profile" class="{{ 'active' if active == 'profile' }}" style="font-size:12px"><span class="nav-icon">&#9881;</span><span>Profile</span></a>
+            {% if request.state.user and request.state.user.role == 'admin' %}
+            <a href="/admin" class="{{ 'active' if active == 'admin' }}" style="font-size:12px"><span class="nav-icon">&#128101;</span><span>Admin</span></a>
+            {% endif %}
+            <a href="/logout" style="font-size:12px;color:var(--red)"><span class="nav-icon">&#10140;</span><span>Logout</span></a>
+        </div>
+    </nav>
+    <div class="main">{% block content %}{% endblock %}</div>
+
+    {% if request.state.user %}
+    <div id="jobs-widget" hx-get="/jobs/panel" hx-trigger="load, every 3s"
+         hx-swap="outerHTML" style="display:none"></div>
+    {% endif %}
+
+    <script>
+    function showTab(container, tabId) {
+        const wrap = typeof container === 'string' ? document.getElementById(container) : (container.closest('.card') || container.closest('.tab-wrap') || container.closest('details') || container.closest('.details-body'));
+        if (!wrap) return;
+        wrap.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        wrap.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        const tab = document.getElementById(tabId);
+        if (tab) tab.classList.add('active');
+        if (event && event.target) event.target.classList.add('active');
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %} — SMTP Check #{{ job.id }}{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Job #{{ job.id }} · {{ job.name }}</h1>
+    <a href="/smtp-check" class="btn btn-secondary btn-sm">← Back</a>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3>Summary</h3></div>
+    <div class="grid-2">
+        <div>
+            <div style="font-size:13px;color:var(--fg2);margin-bottom:4px">
+                Receiver: <code>{{ job.receiver_email }}</code><br>
+                Wait: {{ job.wait_seconds }}s ·
+                Status: <span class="badge badge-{{ 'running' if job.status == 'DONE' else 'draft' }}">{{ job.status }}</span><br>
+                {% if job.finished_at %}Finished: <span style="font-size:12px">{{ job.finished_at }}</span>{% endif %}
+            </div>
+        </div>
+        <div>
+            <div style="display:flex;gap:14px;flex-wrap:wrap">
+                <div><div style="font-size:11px;color:var(--fg2)">Delivered</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--green)">{{ buckets['delivered']|length }}</div></div>
+                <div><div style="font-size:11px;color:var(--fg2)">Invalid</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--red)">{{ buckets['not_delivered']|length }}</div></div>
+                <div><div style="font-size:11px;color:var(--fg2)">Conn. Issues</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--orange,#c88400)">
+                        {{ (buckets['connection_error']|length) + (buckets['proxy_error']|length) + (buckets['auth_error']|length) + (buckets['send_error']|length) }}
+                    </div></div>
+                {% if buckets['sent']|length or buckets['pending']|length %}
+                <div><div style="font-size:11px;color:var(--fg2)">Sent (no verdict)</div>
+                    <div style="font-size:22px;font-weight:700">{{ (buckets['sent']|length) + (buckets['pending']|length) }}</div></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <!-- Delivered -->
+    <div class="card">
+        <div class="card-header"><h3>Delivered ({{ buckets['delivered']|length }})</h3></div>
+        {% if buckets['delivered'] %}
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <a href="/smtp-check/job/{{ job.id }}/export/delivered.txt" class="btn btn-secondary btn-xs">Download .txt</a>
+            <form hx-post="/smtp-check/job/{{ job.id }}/save-list"
+                  hx-target="#save-good" hx-swap="innerHTML"
+                  style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <input type="hidden" name="bucket" value="delivered">
+                <input name="list_name" placeholder="new list name" style="width:180px;padding:2px 6px;font-size:12px">
+                <button class="btn btn-success btn-xs">Save as new SMTP list</button>
+            </form>
+        </div>
+        <div id="save-good" style="font-size:12px;margin-bottom:6px"></div>
+        <table style="font-size:12px">
+            <thead><tr><th>Host</th><th>Port</th><th>Username</th></tr></thead>
+            <tbody>
+            {% for r in buckets['delivered'] %}
+            <tr><td>{{ r.host }}</td><td>{{ r.port }}</td><td style="font-family:monospace">{{ r.username }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:var(--fg2);font-size:13px;margin:0">Nothing landed at the receiver.</p>
+        {% endif %}
+    </div>
+
+    <!-- Connection Issues -->
+    <div class="card">
+        <div class="card-header"><h3>Connection Issues ({{ (buckets['connection_error']|length) + (buckets['proxy_error']|length) + (buckets['auth_error']|length) + (buckets['send_error']|length) }})</h3></div>
+        {% set conn_rows = buckets['connection_error'] + buckets['proxy_error'] + buckets['auth_error'] + buckets['send_error'] %}
+        {% if conn_rows %}
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <a href="/smtp-check/job/{{ job.id }}/export/connection.txt" class="btn btn-secondary btn-xs">Download .txt</a>
+            <form hx-post="/smtp-check/job/{{ job.id }}/save-list"
+                  hx-target="#save-conn" hx-swap="innerHTML"
+                  style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <input type="hidden" name="bucket" value="connection">
+                <input name="list_name" placeholder="new list name" style="width:180px;padding:2px 6px;font-size:12px">
+                <button class="btn btn-success btn-xs">Save as new SMTP list</button>
+            </form>
+        </div>
+        <div id="save-conn" style="font-size:12px;margin-bottom:6px"></div>
+        <table style="font-size:12px">
+            <thead><tr><th>Host</th><th>Username</th><th>Kind</th><th>Error</th></tr></thead>
+            <tbody>
+            {% for r in conn_rows %}
+            <tr>
+                <td>{{ r.host }}</td>
+                <td style="font-family:monospace">{{ r.username }}</td>
+                <td><span class="badge badge-failed">{{ r.status }}</span></td>
+                <td style="font-size:11px;color:var(--red)">{{ r.error[:120] }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:var(--fg2);font-size:13px;margin:0">Every SMTP connected + sent cleanly.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Invalid -->
+<div class="card">
+    <div class="card-header"><h3>Invalid — Mail nicht angekommen ({{ buckets['not_delivered']|length }})</h3></div>
+    {% if buckets['not_delivered'] %}
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+        <a href="/smtp-check/job/{{ job.id }}/export/invalid.txt" class="btn btn-secondary btn-xs">Download .txt</a>
+        <form hx-post="/smtp-check/job/{{ job.id }}/save-list"
+              hx-target="#save-invalid" hx-swap="innerHTML"
+              style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input type="hidden" name="bucket" value="invalid">
+            <input name="list_name" placeholder="new list name" style="width:180px;padding:2px 6px;font-size:12px">
+            <button class="btn btn-success btn-xs">Save as new SMTP list</button>
+        </form>
+    </div>
+    <div id="save-invalid" style="font-size:12px;margin-bottom:6px"></div>
+    <p style="font-size:12px;color:var(--fg2);margin-bottom:6px">
+        Connection + send returned OK but nothing appeared in <code>{{ job.receiver_email }}</code> within {{ job.wait_seconds }}s.
+        Usually means the target MX silently dropped it (SPF/DKIM/reputation) or the SMTP has a broken bounce path.
+    </p>
+    <table style="font-size:12px">
+        <thead><tr><th>Host</th><th>Port</th><th>Username</th></tr></thead>
+        <tbody>
+        {% for r in buckets['not_delivered'] %}
+        <tr><td>{{ r.host }}</td><td>{{ r.port }}</td><td style="font-family:monospace">{{ r.username }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--fg2);font-size:13px;margin:0">All probes that could be sent were delivered.</p>
+    {% endif %}
+</div>
+{% endblock %}

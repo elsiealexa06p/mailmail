@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% set active = "gates" %}
+{% block content %}
+<div class="page-header">
+    <h1>Gates (Domains)</h1>
+    <a href="/admin/gates/new" class="btn btn-primary btn-sm">+ Neue Gate</a>
+</div>
+
+<p class="muted" style="font-size:13px">
+    Jede Gate ist eine eigene Domain mit eigenem Modus, Ziel-URL, Logo und optional
+    eigenem Turnstile-Widget. Caddy holt für jede Domain automatisch ein
+    Let's-Encrypt-Zertifikat sobald DNS auf diesen Server zeigt.
+    Server-IP: <code>{{ server_ip or 'noch nicht ermittelt' }}</code>.
+</p>
+
+{% if gates %}
+{# WICHTIG: form NICHT um die Tabelle wickeln — die Tabelle enthält
+   pro Gate ein delete-<form>, nested forms sind HTML-invalid und der
+   Browser bricht das outer form ab (submit fällt auf GET auf current URL).
+   Stattdessen HTML5-form-Attribut: form="bulk-gates-form" auf den
+   Checkboxen. #}
+<form id="bulk-gates-form" hx-post="/admin/gates/bulk-generate-links"
+      hx-target="#bulk-links-result" hx-swap="innerHTML"
+      hx-include="input[name='gate_ids']:checked">
+<div class="card" style="margin-bottom:12px;padding:10px 12px;border:2px solid var(--accent)">
+    <strong style="font-size:13px">&#128279; Bulk Ready-Links: N pro ausgewähltem Gate</strong>
+    <p class="muted" style="font-size:11px;margin:4px 0">
+        Checkbox pro Gate in der Liste setzen (oder „Alle" oben in der Tabelle),
+        Anzahl pro Gate wählen, absenden — alle URLs kommen als kopierbare Liste zurück.
+    </p>
+    <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+        <label style="margin:0">Links pro Gate
+            <input type="number" name="count_per_gate" value="10" min="1" max="500"
+                   style="width:90px;margin:0;display:block">
+        </label>
+        <label style="margin:0">Slug-Länge
+            <input type="number" name="slug_length" value="8" min="4" max="24"
+                   style="width:80px;margin:0;display:block">
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm">Links generieren für ausgewählte</button>
+        <span style="font-size:11px;color:var(--fg2)"
+              id="bulk-selected-count">0 ausgewählt</span>
+    </div>
+    <div id="bulk-links-result" style="margin-top:10px"></div>
+</div>
+</form>
+{# Ende bulk-gates-form — Tabelle folgt AUSSERHALB (siehe Kommentar oben). #}
+
+<form id="bulk-edit-form" hx-post="/admin/gates/bulk-edit"
+      hx-target="#bulk-edit-result" hx-swap="innerHTML"
+      hx-encoding="multipart/form-data"
+      hx-include="input[name='gate_ids']:checked">
+<div class="card" style="margin-bottom:12px;padding:10px 12px;border:2px solid var(--accent)">
+    <strong style="font-size:13px">&#9999;&#65039; Bulk-Edit ausgewählter Gates</strong>
+    <p class="muted" style="font-size:11px;margin:4px 0">
+        Ändert bei allen angehakten Gates die eingegebenen Felder. Leer gelassene
+        Felder bleiben unverändert. Logo-Upload optional — gleiches Logo für alle.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <label style="margin:0">
+            <span style="font-size:11px">Target-URL (leer = unverändert)</span>
+            <input type="text" name="bulk_target_url"
+                   placeholder="https://real-landing.de/x"
+                   style="font-size:12px;margin:0;width:100%;box-sizing:border-box">
+        </label>
+        <label style="margin:0">
+            <span style="font-size:11px">Modus</span>
+            <select name="bulk_mode" style="font-size:12px;margin:0;width:100%">
+                <option value="">— unverändert —</option>
+                {% for k, p in presets.items() %}
+                <option value="{{ k }}">{{ p.label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label style="margin:0">
+            <span style="font-size:11px">Brand-Color</span>
+            <div style="display:flex;gap:4px;align-items:center">
+                <input type="color" style="width:36px;height:30px;padding:0;border:1px solid var(--border);cursor:pointer"
+                       oninput="this.nextElementSibling.value=this.value">
+                <input type="text" name="bulk_brand_color" placeholder="#005eb8 (leer = unverändert)"
+                       style="flex:1;font-family:monospace;font-size:11px;margin:0">
+            </div>
+        </label>
+        <label style="margin:0">
+            <span style="font-size:11px">Brand-Text</span>
+            <input type="text" name="bulk_brand_text"
+                   placeholder="Sicherheitsprüfung läuft …"
+                   style="font-size:12px;margin:0;width:100%;box-sizing:border-box">
+        </label>
+        <label style="margin:0;grid-column:1/-1">
+            <span style="font-size:11px">Logo (für alle Gates gleich — leer = unverändert, max 2 MB)</span>
+            <input type="file" name="bulk_logo" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                   style="font-size:12px;margin:0;width:100%">
+        </label>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <button type="submit" class="btn btn-primary btn-sm"
+                hx-confirm="Die ausgefüllten Felder bei allen angehakten Gates anwenden?">
+            Auf ausgewählte anwenden
+        </button>
+        <span style="font-size:11px;color:var(--fg2)">
+            Nutzt die Checkboxen aus der Tabelle unten (gleiche Selektion wie beim Ready-Links-Bulk).
+        </span>
+    </div>
+    <div id="bulk-edit-result" style="margin-top:10px"></div>
+</div>
+</form>
+
+<div class="card" style="margin-bottom:12px;padding:10px 12px">
+    <strong style="font-size:13px">&#127774; CF-Wolke Bulk-Toggle für alle {{ gates|length }} Gates</strong>
+    <p class="muted" style="font-size:11px;margin:4px 0">
+        Schaltet alle A/AAAA/CNAME-Records aller Gates auf einmal auf CF-proxied
+        (orange) oder DNS-only (grau). Vorher sicherstellen dass Caddy die
+        HTTPS-Certs geholt hat — sonst hängt der Traffic.
+    </p>
+    <button class="btn btn-secondary btn-sm"
+            hx-post="/admin/gates/bulk-cf-proxy"
+            hx-vals='{"proxied":"1"}'
+            hx-target="#bulk-cf-result" hx-swap="innerHTML"
+            hx-confirm="ALLE Gates auf CF-orange (proxied) setzen?">
+        Alle auf orange
+    </button>
+    <button class="btn btn-secondary btn-sm" style="margin-left:6px"
+            hx-post="/admin/gates/bulk-cf-proxy"
+            hx-vals='{"proxied":"0"}'
+            hx-target="#bulk-cf-result" hx-swap="innerHTML"
+            hx-confirm="ALLE Gates auf CF-grau (DNS only) setzen?">
+        Alle auf grau
+    </button>
+    <div id="bulk-cf-result" style="margin-top:8px;font-size:12px"></div>
+</div>
+
+<table style="font-size:12px">
+    <thead>
+        <tr>
+            <th style="width:24px"><input type="checkbox" id="bulk-all"
+                onchange="document.querySelectorAll('input[name=gate_ids]').forEach(c=>{c.checked=this.checked});document.getElementById('bulk-selected-count').textContent=document.querySelectorAll('input[name=gate_ids]:checked').length+' ausgewählt';"></th>
+            <th>Hostname</th><th>Modus</th><th>Ziel</th><th>Links</th>
+            <th>Aktiv</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for g in gates %}
+    <tr>
+        <td><input type="checkbox" name="gate_ids" value="{{ g.id }}" form="bulk-gates-form"
+                   onchange="document.getElementById('bulk-selected-count').textContent=document.querySelectorAll('input[name=gate_ids]:checked').length+' ausgewählt';"></td>
+        <td style="font-family:monospace">{{ g.hostname }}</td>
+        <td><span class="badge">{{ g.mode }}</span>
+            <div class="muted" style="font-size:10px">{{ g.mode_label }}</div></td>
+        <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+            title="{{ g.target_url }}">{{ g.target_url }}</td>
+        <td>{{ g.link_count }}</td>
+        <td>{% if g.active %}<span class="v-allow">ja</span>{% else %}<span class="v-block">nein</span>{% endif %}</td>
+        <td style="white-space:nowrap">
+            <a href="/admin/gates/{{ g.id }}" class="btn btn-secondary btn-xs">Edit / Links</a>
+            <a href="https://{{ g.hostname }}/admin/gates/{{ g.id }}"
+               class="btn btn-secondary btn-xs" target="_blank">Live</a>
+            <form method="post" action="/admin/gates/{{ g.id }}/delete" style="display:inline"
+                  onsubmit="return confirm('Gate + alle Links löschen?');">
+                <button class="btn btn-danger btn-xs">×</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="card">
+    <p class="muted">Noch keine Gate angelegt. <a href="/admin/gates/new">Neue Gate anlegen →</a></p>
+</div>
+{% endif %}
+{% endblock %}

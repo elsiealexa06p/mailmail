@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %} — AI{% endblock %}
+{% block content %}
+<div class="page-header"><h1>AI Assistant</h1></div>
+
+<div class="card tab-wrap">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('ai-tabs', 'tab-macros')">Expand Macros</button>
+        <button class="tab-btn" onclick="showTab('ai-tabs', 'tab-html')">Generate HTML</button>
+        <button class="tab-btn" onclick="showTab('ai-tabs', 'tab-config')">LLM Settings</button>
+    </div>
+
+    <div id="ai-tabs">
+        <!-- Expand Macros -->
+        <div id="tab-macros" class="tab-content active">
+            <form hx-post="/ai/expand-macro" hx-target="#macro-result" hx-swap="innerHTML">
+                <div class="grid-2">
+                    <div>
+                        <label>Select Macro to Expand</label>
+                        <select name="macro_id" required>
+                            <option value="">— Choose —</option>
+                            {% for m in macros %}
+                            <option value="{{ m.id }}">{{"{"}}{{ m.name }}{{"}"}} ({{ m.values_text.splitlines()|length if m.values_text else 0 }} values)</option>
+                            {% endfor %}
+                        </select>
+
+                        <label>How many new entries?</label>
+                        <input name="count" type="number" value="20" min="1" max="100">
+                    </div>
+                    <div>
+                        <label>Custom Instructions (optional)</label>
+                        <textarea name="custom_prompt" rows="4" placeholder="z.B. Nutze das Wort 'exklusiv' nicht. Halte die Saetze kurz. Formeller Ton."></textarea>
+                        <div class="form-help">AI analysiert den Stil der bestehenden Eintraege und generiert passende neue.</div>
+                    </div>
+                </div>
+                <div style="margin-top:12px">
+                    <button class="btn btn-primary">Generate with AI</button>
+                </div>
+            </form>
+            <div id="macro-result" style="margin-top:16px"></div>
+        </div>
+
+        <!-- Generate HTML -->
+        <div id="tab-html" class="tab-content">
+            <form hx-post="/ai/generate-html" hx-target="#html-result" hx-swap="innerHTML">
+                <div class="grid-2">
+                    <div>
+                        <label>Template Description</label>
+                        <textarea name="description" rows="5" placeholder="z.B. Newsletter fuer ein Autohaus mit Logo oben, Hauptbild, 3 Angebote als Karten, Footer mit Kontaktdaten und Abmeldelink" required></textarea>
+                    </div>
+                    <div>
+                        <label>Style</label>
+                        <select name="style">
+                            <option value="professional">Professional / Business</option>
+                            <option value="modern">Modern / Minimalist</option>
+                            <option value="newsletter">Newsletter / Magazine</option>
+                            <option value="promotional">Promotional / Sale</option>
+                            <option value="transactional">Transactional / Notification</option>
+                        </select>
+                        <div class="form-help" style="margin-top:12px">
+                            AI generates Outlook-compatible HTML with inline CSS.
+                            Uses {email_user}, {Logo}, {RedirectLink} placeholders.
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:12px">
+                    <button class="btn btn-primary">Generate Template</button>
+                </div>
+            </form>
+            <div id="html-result" style="margin-top:16px"></div>
+        </div>
+
+        <!-- LLM Settings -->
+        <div id="tab-config" class="tab-content">
+            <div style="max-width:500px">
+                <form hx-post="/ai/config" hx-target="#ai-config-result" hx-swap="innerHTML">
+                    <label>API URL</label>
+                    <input name="llm_api_url" value="{{ cfg.llm_api_url or 'https://openrouter.ai/api/v1/chat/completions' }}">
+                    <div class="form-help">OpenRouter (recommended), OpenAI, or any compatible endpoint.</div>
+
+                    <label>API Key</label>
+                    <input name="llm_api_key" type="password" value="{{ cfg.llm_api_key or '' }}" placeholder="sk-or-...">
+
+                    <label>Model</label>
+                    <input name="llm_model" value="{{ cfg.llm_model or 'anthropic/claude-sonnet-4-20250514' }}" placeholder="anthropic/claude-sonnet-4-20250514">
+                    <div class="form-help">
+                        OpenRouter models: anthropic/claude-sonnet-4-20250514, openai/gpt-4o-mini, meta-llama/llama-3-70b, mistralai/mistral-large<br>
+                        OpenAI: gpt-4o-mini, gpt-4o
+                    </div>
+
+                    <div style="margin-top:14px" class="btn-group">
+                        <button class="btn btn-primary btn-sm">Save</button>
+                        <button type="button" class="btn btn-secondary btn-sm"
+                                hx-post="/ai/test" hx-target="#ai-config-result" hx-swap="innerHTML">Test Connection</button>
+                    </div>
+                </form>
+                <div id="ai-config-result" style="margin-top:10px"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>antibot{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <h2>antibot</h2>
+            <small>bot mitigation</small>
+        </div>
+        <div class="sidebar-section">Panel</div>
+        <a href="/admin"           class="{{ 'active' if active == 'dashboard' }}">Dashboard</a>
+        <a href="/admin/log"       class="{{ 'active' if active == 'log' }}">Decision Log</a>
+        <a href="/admin/policies"  class="{{ 'active' if active == 'policies' }}">Policies</a>
+        <a href="/admin/playground" class="{{ 'active' if active == 'playground' }}">Playground</a>
+        <a href="/admin/gates"     class="{{ 'active' if active == 'gates' }}">Gates</a>
+        <a href="/admin/domains"   class="{{ 'active' if active == 'domains' }}">Domains &amp; API</a>
+        <a href="/admin/settings"  class="{{ 'active' if active == 'settings' }}">Settings</a>
+        <div class="sidebar-section">Session</div>
+        <a href="/logout" style="color:#c33">Logout</a>
+    </nav>
+    <main class="main">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

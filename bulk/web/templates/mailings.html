@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %} — Mailings{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Mailings</h1>
+</div>
+
+{% if mailings %}
+<div class="card" hx-get="/mailings/table" hx-trigger="every 3s" hx-swap="innerHTML" id="mailings-table">
+    <div class="card-header">
+        <h3>Campaigns <span class="count">{{ mailings|length }}</span></h3>
+    </div>
+    <table>
+        <thead>
+            <tr><th>Name</th><th>Domain</th><th>SMTP</th><th>Progress</th><th>Total</th><th>Sent</th><th>Failed</th><th>Remaining</th><th>Speed</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for m in mailings %}
+        <tr style="{{ 'background:var(--green-light)' if m.running else '' }}">
+            <td style="font-weight:500">{{ m.name or ('#' ~ m.id) }}</td>
+            <td style="font-size:12px">{{ m.domain_name }}</td>
+            <td style="font-size:12px">{{ m.smtp_name }}</td>
+            <td style="min-width:120px">
+                <div class="progress">
+                    <div class="progress-bar" style="width:{{ m.pct }}%">{{ m.pct }}%</div>
+                </div>
+            </td>
+            <td>{{ "{:,}".format(m.total_leads or 0) }}</td>
+            <td style="color:var(--green);font-weight:500">{{ "{:,}".format(m.sent or 0) }}</td>
+            <td style="color:var(--red)">{{ "{:,}".format(m.failed or 0) }}</td>
+            <td>{{ "{:,}".format(m.remaining) }}</td>
+            <td>{{ "{:,}".format(m.speed) ~ "/h" if m.speed else "—" }}</td>
+            <td>
+                <div class="btn-group">
+                    {% if not m.running %}
+                    <form method="post" action="/mailings/{{ m.id }}/start" style="display:inline">
+                        <button class="btn btn-success btn-xs">Start</button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="/mailings/{{ m.id }}/stop" style="display:inline">
+                        <button class="btn btn-danger btn-xs">Stop</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Selected mailing details / live stats -->
+{% if mailings %}
+{% for m in mailings %}
+<details {{ 'open' if loop.first }}>
+    <summary>
+        {{ m.name or ('#' ~ m.id) }}
+        <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <span class="badge badge-{{ 'running' if m.running else m.status|lower }}">{{ m.status }}</span>
+            <span style="font-size:12px;color:var(--fg2)">{{ m.domain_name }} / {{ m.smtp_name }}</span>
+        </span>
+    </summary>
+    <div class="details-body" style="padding-top:16px">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab(this.closest('details'), 'ml-stats-{{ m.id }}')">Live Stats</button>
+            <button class="tab-btn" onclick="showTab(this.closest('details'), 'ml-edit-{{ m.id }}')">Edit Mailing</button>
+        </div>
+
+        <!-- Live Stats -->
+        <div id="ml-stats-{{ m.id }}" class="tab-content active"
+             hx-get="/mailings/{{ m.id }}/stats" hx-trigger="every 3s" hx-swap="innerHTML">
+            <p style="color:var(--fg2)">Loading stats...</p>
+        </div>
+
+        <!-- Edit Mailing -->
+        <div id="ml-edit-{{ m.id }}" class="tab-content">
+            <form method="post" action="/mailings/{{ m.id }}/save">
+                <div class="grid-2">
+                    <div>
+                        <label>Name</label>
+                        <input name="name" value="{{ m.name or '' }}">
+
+                        <label>Brand</label>
+                        <select name="brand_id">
+                            <option value="0">—</option>
+                            {% for b in brands %}<option value="{{ b.id }}" {{ 'selected' if b.id == m.brand_id }}>{{ b.name }}</option>{% endfor %}
+                        </select>
+
+                        <label>Domain</label>
+                        <select name="domain_id">
+                            <option value="0">—</option>
+                            {% for d in domains %}<option value="{{ d.id }}" {{ 'selected' if d.id == m.domain_id }}>{{ d.domain }}</option>{% endfor %}
+                        </select>
+
+                        <label>Mailing List</label>
+                        <select name="list_id">
+                            <option value="0">—</option>
+                            {% for l in lists %}<option value="{{ l.id }}" {{ 'selected' if l.id == m.list_id }}>{{ l.name }} ({{ db.get_list_lead_count(l.id) }})</option>{% endfor %}
+                        </select>
+
+                        <label>SMTP</label>
+                        <select name="smtp_preset_id">
+                            <option value="0">—</option>
+                            {% for s in smtps %}<option value="{{ s.id }}" {{ 'selected' if s.id == m.smtp_preset_id }}>{{ s.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Template</label>
+                        <select name="template_id">
+                            <option value="0">—</option>
+                            {% for t in templates %}<option value="{{ t.id }}" {{ 'selected' if t.id == m.template_id }}>{{ t.name }}</option>{% endfor %}
+                        </select>
+
+                        <label>Daily Limit</label>
+                        <input name="daily_limit" type="number" value="{{ m.daily_limit or 0 }}">
+
+                        <label>Exclude Domains</label>
+                        <input name="exclude_domains" value="{{ m.exclude_domains_json|default('[]',true)|replace('[','') |replace(']','')|replace('\"','') }}">
+
+                        <label>Test Email</label>
+                        <input name="test_email" value="{{ m.test_email or '' }}">
+
+                        <label>Test Every N Sends</label>
+                        <input name="test_interval" type="number" value="{{ m.test_interval or 0 }}">
+
+                        <label>Schedule (HH:MM)</label>
+                        <input name="schedule_time" value="{{ m.schedule_time or '' }}">
+                    </div>
+                </div>
+                <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-primary btn-sm">Save Changes</button>
+                    <form method="post" action="/mailings/{{ m.id }}/reset"
+                          onsubmit="return confirm('Reset all leads to PENDING? This will re-send everything.')">
+                        <button class="btn btn-secondary btn-sm">Reset & Resend</button>
+                    </form>
+                    <form method="post" action="/mailings/{{ m.id }}/delete"
+                          onsubmit="return confirm('Delete this mailing permanently?')">
+                        <button class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </div>
+            </form>
+        </div>
+    </div>
+</details>
+{% endfor %}
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="icon">&#9654;</div>
+        <p>No mailings yet. Create one below.</p>
+    </div>
+</div>
+{% endif %}
+
+<details {{ 'open' if not mailings }}>
+    <summary>Create New Mailing</summary>
+    <div class="details-body" style="padding-top:16px">
+        <form method="post" action="/mailings/add">
+            <div class="grid-2">
+                <div>
+                    <label>Mailing Name</label>
+                    <input name="name" placeholder="e.g. KN-News April 2026">
+
+                    <label>Brand</label>
+                    <select name="brand_id">
+                        <option value="0">— Select —</option>
+                        {% for b in brands %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+                    </select>
+
+                    <label>Domain</label>
+                    <select name="domain_id">
+                        <option value="0">— Select —</option>
+                        {% for d in domains %}<option value="{{ d.id }}">{{ d.domain }}</option>{% endfor %}
+                    </select>
+
+                    <label>Mailing List</label>
+                    <select name="list_id">
+                        <option value="0">— Select —</option>
+                        {% for l in lists %}<option value="{{ l.id }}">{{ l.name }} ({{ db.get_list_lead_count(l.id) }})</option>{% endfor %}
+                    </select>
+
+                    <label>SMTP</label>
+                    <select name="smtp_preset_id">
+                        <option value="0">— Select —</option>
+                        {% for s in smtps %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Template</label>
+                    <select name="template_id">
+                        <option value="0">— Select —</option>
+                        {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+                    </select>
+
+                    <label>Daily Limit</label>
+                    <input name="daily_limit" type="number" value="0" min="0">
+
+                    <label>Exclude Domains</label>
+                    <input name="exclude_domains" placeholder="yahoo.de, aol.com">
+
+                    <label>Test Email</label>
+                    <input name="test_email" placeholder="test@inbox.com">
+
+                    <label>Test Every N</label>
+                    <input name="test_interval" type="number" value="0" min="0">
+
+                    <label>Schedule (HH:MM)</label>
+                    <input name="schedule_time" placeholder="07:00">
+                </div>
+            </div>
+            <div style="margin-top:16px">
+                <button class="btn btn-primary">Create Mailing</button>
+            </div>
+        </form>
+    </div>
+</details>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% set active = "settings" %}
+{% block content %}
+<div class="page-header"><h1>Settings</h1></div>
+
+{% if request.query_params.get('rotated') == '1' %}
+<div class="alert alert-warn">HMAC-Secret wurde rotiert &mdash; alle vorhandenen Mailer-Links sind ab jetzt UNGÜLTIG. Neuen Secret im Mailer eintragen.</div>
+{% endif %}
+
+<div class="card">
+    <h3>Dry-Run</h3>
+    <p class="muted">Wenn AN: alle Entscheidungen werden geloggt, aber niemand wird tatsächlich geblockt. Empfehlung: 24-48h laufen lassen, Log durchgehen, dann ausschalten.</p>
+    <form method="post" action="/admin/settings/dry-run" style="display:flex;gap:8px;align-items:center">
+        <label style="margin:0">
+            <input type="checkbox" name="dry_run" value="1"
+                   {% if cfg.dry_run == '1' %}checked{% endif %}> Dry-Run aktiv
+        </label>
+        <button class="btn btn-primary btn-sm">Speichern</button>
+    </form>
+</div>
+
+<div class="card" style="margin-top:16px">
+    <h3>Branding &amp; Redirect</h3>
+    <form method="post" action="/admin/settings/branding" enctype="multipart/form-data">
+        <label>Default-Redirect-Ziel</label>
+        <input name="default_target" value="{{ cfg.default_target }}">
+        <label>Wartetext</label>
+        <input name="brand_text" value="{{ cfg.brand_text }}">
+        <div class="grid-2">
+            <div>
+                <label>Primary Color</label>
+                <input name="brand_color" type="color" value="{{ cfg.brand_color }}" style="width:60px;height:34px">
+            </div>
+            <div>
+                <label>Wait-Screen Sekunden (0 = kein Screen für Human-verdicts, direkter Redirect)</label>
+                <input name="wait_seconds" type="number" value="{{ cfg.wait_seconds }}" min="0" max="20">
+                <div class="form-help">
+                    Wenn &gt; 0: JEDER (auch als Human erkannter Traffic) sieht kurz den
+                    Wait-Screen mit deinem Logo + Wartetext bevor's zum Ziel geht. Empfehlung: 2-4 Sek.
+                    Bei 0 wird direkt weitergeleitet (nur Challenges kriegen dann noch den Screen).
+                </div>
+            </div>
+        </div>
+        <label>Logo hochladen</label>
+        <input type="file" name="logo" accept="image/*">
+        {% if cfg.logo_path %}
+        <p><img src="{{ cfg.logo_path }}" style="max-height:60px;background:#eee;padding:6px;border-radius:4px"></p>
+        {% endif %}
+        <button class="btn btn-primary btn-sm" style="margin-top:8px">Speichern</button>
+    </form>
+</div>
+
+<div class="card" style="margin-top:16px">
+    <h3>Schwellwerte &amp; Rate-Limits</h3>
+    <form method="post" action="/admin/settings/thresholds">
+        <div class="grid-2">
+            <div>
+                <label>Allow &lt; (Score darunter → sofortige Weiterleitung)</label>
+                <input name="threshold_allow" type="number" value="{{ cfg.threshold_allow }}" min="0" max="100">
+            </div>
+            <div>
+                <label>Block ≥ (Score darüber → Honeypot / 403)</label>
+                <input name="threshold_block" type="number" value="{{ cfg.threshold_block }}" min="0" max="100">
+            </div>
+            <div>
+                <label>Rate-Limit / Session / Minute</label>
+                <input name="rate_limit_per_min" type="number" value="{{ cfg.rate_limit_per_min }}" min="1" max="10000">
+            </div>
+            <div>
+                <label>Verification-Cookie TTL (Stunden)</label>
+                <input name="verification_ttl_hours" type="number" value="{{ cfg.verification_ttl_hours }}" min="1" max="168">
+            </div>
+            <div>
+                <label>PoW-Schwierigkeit (leading nibbles, 3–8)</label>
+                <input name="pow_difficulty" type="number" value="{{ cfg.pow_difficulty }}" min="3" max="8">
+            </div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px">Speichern</button>
+    </form>
+</div>
+
+<div class="card" style="margin-top:16px">
+    <h3>API-Keys &amp; Webhook</h3>
+    <form method="post" action="/admin/settings/api-keys">
+        <label>Cloudflare Turnstile Site Key</label>
+        <input name="turnstile_site_key" value="{{ cfg.turnstile_site_key }}">
+        <label>Cloudflare Turnstile Secret Key</label>
+        <input name="turnstile_secret_key" type="password" value="{{ cfg.turnstile_secret_key }}">
+        <label>MaxMind GeoIP2 Lizenz-Key</label>
+        <input name="maxmind_license_key" type="password" value="{{ cfg.maxmind_license_key }}">
+        <label>Webhook-URL (Discord/Slack/Telegram)</label>
+        <input name="webhook_url" value="{{ cfg.webhook_url }}">
+        <label>Webhook: nur bei Score ≥</label>
+        <input name="webhook_min_score" type="number" value="{{ cfg.webhook_min_score }}" min="0" max="100">
+        <button class="btn btn-primary btn-sm" style="margin-top:8px">Speichern</button>
+    </form>
+</div>
+
+<div class="card" style="margin-top:16px">
+    <h3>HMAC-Secret (Mailer-Kopplung)</h3>
+    <p class="muted">Diesen String im Mailer unter <code>/antibot-config</code> als Shared-Secret eintragen.</p>
+    <textarea readonly rows="2" onclick="this.select()"
+              style="font-family:monospace;font-size:12px">{{ cfg.hmac_secret }}</textarea>
+    <form method="post" action="/admin/settings/rotate-secret" style="margin-top:8px"
+          onsubmit="return confirm('Wirklich rotieren? ALLE bestehenden Mailer-Links werden ungültig!')">
+        <input type="hidden" name="confirm" value="rotate">
+        <button class="btn btn-danger btn-sm">Secret rotieren (invalidiert alle bestehenden Links)</button>
+    </form>
+</div>
+{% endblock %}

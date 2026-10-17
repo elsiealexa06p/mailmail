@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %} — Porkbun{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Porkbun Registrar</h1>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+    <div class="grid-2" style="align-items:end">
+        <div>
+            <label>Porkbun-Account</label>
+            <select id="pb-search-account" name="account_id">
+                <option value="0">Primary</option>
+                {% for a in accounts %}
+                <option value="{{ a.id }}" {{ 'selected' if a.is_primary }}>{{ a.name }}{{ ' (Primary)' if a.is_primary }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Cloudflare-Account</label>
+            <select id="pb-cf-account" name="cf_account_id">
+                <option value="0">Erster CF-Account</option>
+                {% for c in cf_accounts %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+            {% if not cf_accounts %}
+            <p class="muted" style="font-size:11px;margin-top:4px">
+                Kein CF-Account — <a href="/cloudflare">im CF-Panel anlegen</a>
+            </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Domain-Suche</h3>
+        <p class="muted" style="font-size:12px">
+            Bulk-Check auf Verfügbarkeit + Preis. Verfügbare Domains kannst du direkt
+            per API kaufen (Register → CF-Zone → NS setzen alles in einem).
+            Domains die schon im Account sind → direkt CF-Zone + NS setzen.
+        </p>
+        <form hx-post="/porkbun/search" hx-target="#pb-search-result" hx-swap="innerHTML"
+              hx-include="#pb-search-account">
+            <label>Domains (eine pro Zeile, max. 15 — 11s Wait zwischen Checks)</label>
+            <textarea name="query" rows="5" style="font-family:monospace;font-size:12px"
+                      placeholder="beispiel.de&#10;meinshop.com&#10;newsletter-xyz.de" required></textarea>
+            <button class="btn btn-primary btn-sm" style="margin-top:8px">Verfügbarkeit prüfen</button>
+        </form>
+        <div id="pb-search-result" style="margin-top:12px"></div>
+        <div id="pb-buy-result" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+        <h3>Nameserver setzen (Details)</h3>
+        <p class="muted" style="font-size:12px">
+            Für Einzelaktionen oder eigene NS-Liste — nutzt die Auswahl oben.
+        </p>
+
+        <details open>
+            <summary style="cursor:pointer;font-size:12px"><strong>Auto CF-Connect (Zone anlegen wenn nötig)</strong></summary>
+            <form hx-post="/porkbun/set-ns-cf" hx-target="#cf-connect-result" hx-swap="innerHTML"
+                  hx-include="#pb-search-account,#pb-cf-account"
+                  style="margin-top:8px">
+                <label>Domain</label>
+                <input name="domain" placeholder="deine-domain.de" required>
+                <button class="btn btn-primary btn-sm" style="margin-top:8px">CF-Zone + NS setzen</button>
+            </form>
+            <div id="cf-connect-result" style="margin-top:10px"></div>
+        </details>
+
+        <details style="margin-top:12px">
+            <summary style="cursor:pointer;font-size:12px"><strong>Manuell (eigene NS-Liste, max. 8)</strong></summary>
+            <form hx-post="/porkbun/set-ns" hx-target="#ns-manual-result" hx-swap="innerHTML"
+                  hx-include="#pb-search-account"
+                  style="margin-top:8px">
+                <label>Domain</label>
+                <input name="domain" placeholder="deine-domain.de" required>
+                <label>Nameserver (eine pro Zeile)</label>
+                <textarea name="nameservers" rows="4" style="font-family:monospace;font-size:12px" required
+                          placeholder="alice.ns.cloudflare.com&#10;bob.ns.cloudflare.com"></textarea>
+                <button class="btn btn-primary btn-sm" style="margin-top:8px">NS setzen (mit Retry)</button>
+            </form>
+            <div id="ns-manual-result" style="margin-top:10px"></div>
+        </details>
+    </div>
+</div>
+
+<div class="card" style="margin-top:12px">
+    <h3>Accounts</h3>
+    <p class="muted" style="font-size:12px">
+        Zwei Werte pro Account: <code>API Key</code> + <code>Secret API Key</code>.
+        Aus dem Porkbun-Dashboard unter „Account &rarr; API Access" holen und
+        <strong>API Access für den Account einschalten</strong>.
+    </p>
+    {% if accounts %}
+    <table style="font-size:12px">
+        <thead><tr><th>Name</th><th>API-Key</th><th>Proxy</th><th>Primary</th><th></th></tr></thead>
+        <tbody>
+        {% for a in accounts %}
+        <tr>
+            <td>{{ a.name }}</td>
+            <td style="font-family:monospace;font-size:11px">{{ a.api_key[:6] }}…{{ a.api_key[-4:] if a.api_key|length > 10 else '' }}</td>
+            <td style="font-family:monospace;font-size:10px;color:var(--fg2)">
+                {% if a.proxy %}
+                {% set _p = a.proxy.split('@')[-1] if '@' in a.proxy else a.proxy %}
+                {{ _p[:24] }}{% if _p|length > 24 %}…{% endif %}
+                {% else %}—{% endif %}
+            </td>
+            <td>{% if a.is_primary %}<span class="badge badge-running">Primary</span>{% else %}
+                <form method="post" action="/porkbun/accounts/{{ a.id }}/set-primary" style="display:inline">
+                    <button class="btn btn-secondary btn-xs">Set primary</button>
+                </form>{% endif %}
+            </td>
+            <td>
+                <details style="display:inline-block;vertical-align:middle">
+                    <summary class="btn btn-secondary btn-xs" style="cursor:pointer">Edit</summary>
+                    <form method="post" action="/porkbun/accounts/{{ a.id }}/update"
+                          style="margin-top:6px;padding:6px;background:var(--bg);border-radius:4px">
+                        <label style="font-size:11px">Name</label>
+                        <input name="name" value="{{ a.name }}" style="font-size:12px">
+                        <label style="font-size:11px">Neuer API-Key (leer = unverändert)</label>
+                        <input name="api_key" type="password" placeholder="pk1_..." style="font-size:12px">
+                        <label style="font-size:11px">Neues Secret (leer = unverändert)</label>
+                        <input name="api_secret" type="password" placeholder="sk1_..." style="font-size:12px">
+                        <label style="font-size:11px">Proxy (optional)</label>
+                        <input name="proxy" value="{{ a.proxy or '' }}"
+                               placeholder="socks5://user:pass@host:port oder host:port:user:pass"
+                               style="font-family:monospace;font-size:11px">
+                        <div class="form-help" style="font-size:10px;color:var(--fg2)">
+                            Wenn gesetzt: alle API-Calls dieses Accounts laufen über den Proxy.
+                            Leer = direct. Formate: <code>socks5://…</code>, <code>http://user:pass@host:port</code>,
+                            <code>host:port:user:pass</code>.
+                        </div>
+                        <button class="btn btn-primary btn-xs" style="margin-top:6px">Speichern</button>
+                    </form>
+                </details>
+                <button type="button" class="btn btn-secondary btn-xs"
+                        hx-post="/porkbun/test"
+                        hx-vals='{"account_id":"{{ a.id }}"}'
+                        hx-target="#test-{{ a.id }}" hx-swap="innerHTML">Test</button>
+                <form method="post" action="/porkbun/accounts/{{ a.id }}/delete" style="display:inline"
+                      onsubmit="return confirm('Delete account?')">
+                    <button class="btn btn-danger btn-xs">×</button>
+                </form>
+                <div id="test-{{ a.id }}" style="margin-top:4px;font-size:11px"></div>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    <details {{ 'open' if not accounts }} style="margin-top:12px">
+        <summary style="cursor:pointer;font-size:12px">+ Account hinzufügen</summary>
+        <form method="post" action="/porkbun/accounts/add" style="margin-top:8px">
+            <label>Name</label>
+            <input name="name" placeholder="Main-Account" required>
+            <label>API Key (pk1_...)</label>
+            <input name="api_key" type="password" required>
+            <label>Secret API Key (sk1_...)</label>
+            <input name="api_secret" type="password" required>
+            <label>Proxy (optional)</label>
+            <input name="proxy" placeholder="socks5://user:pass@host:port (leer = direct)"
+                   style="font-family:monospace;font-size:12px">
+            <div class="form-help" style="font-size:11px">
+                Wenn gesetzt: alle Porkbun-API-Calls dieses Accounts laufen ausschließlich
+                über den Proxy (Search, Availability, Register, NS-Set).
+                Formate: <code>socks5://user:pass@host:port</code>, <code>http://user:pass@host:port</code>,
+                <code>host:port:user:pass</code> (default SOCKS5).
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-top:8px">Hinzufügen</button>
+        </form>
+    </details>
+</div>
+
+{% if primary %}
+<div class="card" style="margin-top:12px">
+    <h3>Domains im Account „{{ primary.name }}"</h3>
+    <p class="muted" style="font-size:12px">
+        {{ domains|length }} Domain(s) geladen · Porkbun listet max. 1000 pro Request
+    </p>
+    {% if domains %}
+    <table style="font-size:12px">
+        <thead><tr><th>Domain</th><th>Status</th><th>Auto-Renew</th><th>Expiry</th><th></th></tr></thead>
+        <tbody>
+        {% for d in domains %}
+        {% set dname = d.domain or d.name or '' %}
+        {% set did = dname|replace('.', '-') %}
+        <tr>
+            <td style="font-family:monospace">{{ dname or '?' }}</td>
+            <td>{{ d.status or '—' }}</td>
+            <td>{% if d.autoRenew and d.autoRenew|string not in ('0','false','False') %}✓{% else %}—{% endif %}</td>
+            <td style="font-size:11px">{{ (d.expireDate or d.expiresAt or '')[:10] }}</td>
+            <td>
+                {% if dname %}
+                <button type="button" class="btn btn-primary btn-xs"
+                        hx-post="/porkbun/quick-cf"
+                        hx-vals='{"domain":"{{ dname }}"}'
+                        hx-include="#pb-search-account,#pb-cf-account"
+                        hx-target="#dom-row-{{ did }}" hx-swap="innerHTML">
+                    → CF-Zone + NS
+                </button>
+                <div id="dom-row-{{ did }}" style="margin-top:4px;font-size:11px"></div>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Keine Domains geladen. Prüf: API Access im Porkbun-Dashboard eingeschaltet? Key/Secret korrekt?</p>
+    {% endif %}
+</div>
+{% else %}
+<div class="card" style="margin-top:12px">
+    <p class="muted">Erst einen Porkbun-Account hinzufügen um Domains zu sehen.</p>
+</div>
+{% endif %}
+{% endblock %}

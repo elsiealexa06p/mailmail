@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block content %}
+<div class="page-header"><h1>Dashboard</h1>
+    {% if cfg.dry_run == "1" %}
+    <span class="badge badge-warn">DRY-RUN aktiv &mdash; nichts wird tatsächlich geblockt</span>
+    {% endif %}
+</div>
+
+{% if welcome %}
+<div class="alert alert-success">
+    Ersteinrichtung abgeschlossen. Vergiss nicht das <strong>HMAC-Secret</strong>
+    (siehe <a href="/admin/settings">Settings</a>) im Mailer einzutragen — sonst
+    kommen keine Links durch's Gate.
+</div>
+{% endif %}
+
+<div class="grid-3">
+    {% for label, key in [('allowed','allow'),('challenged','challenge'),('blocked','block')] %}
+    <div class="stat">
+        <div class="stat-l">{{ label }} (letzte h)</div>
+        <div class="stat-v">{{ last_hour.get(key, 0) }}</div>
+        <div class="stat-s">24h: {{ last_day.get(key, 0) }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="grid-2" style="align-items:start;margin-top:20px">
+    <div class="card">
+        <h3>Top-blocked ASNs (24h)</h3>
+        {% if top_asns %}
+        <table>
+            <thead><tr><th>ASN</th><th>Hits</th></tr></thead>
+            <tbody>
+            {% for r in top_asns %}
+            <tr><td style="font-family:monospace">{{ r.asn }}</td><td>{{ r.n }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="muted">Noch nichts geblockt.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>Owner-Bypass-Link</h3>
+        <p class="muted">Diesen Query-Param an jede <code>/go/…</code>-URL hängen — Owner umgeht die Prüfung immer. Nicht weitergeben.</p>
+        <input readonly onclick="this.select()" value="?bypass={{ owner_bypass }}"
+               style="width:100%;font-family:monospace;font-size:12px">
+    </div>
+</div>
+
+<div class="card" style="margin-top:20px">
+    <h3>Letzte 20 Entscheidungen</h3>
+    <table style="font-size:12px">
+        <thead><tr><th>Zeit</th><th>Verdict</th><th>Score</th><th>IP</th><th>ASN</th><th>CC</th><th>UA</th><th>Target</th><th>Token</th></tr></thead>
+        <tbody>
+        {% for r in recent %}
+        <tr>
+            <td style="white-space:nowrap">{{ r.ts }}</td>
+            <td>
+                {% if r.verdict == "allow" %}<span class="v-allow">allow</span>
+                {% elif r.verdict == "challenge" %}<span class="v-chal">challenge</span>
+                {% else %}<span class="v-block">block</span>{% endif %}
+                {% if r.dry_run %}<span class="badge badge-warn" style="font-size:10px">DRY</span>{% endif %}
+            </td>
+            <td>{{ r.score }}</td>
+            <td style="font-family:monospace">{{ r.ip }}</td>
+            <td style="font-family:monospace;font-size:11px">{{ r.asn }}</td>
+            <td>{{ r.country }}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                title="{{ r.user_agent }}">{{ r.user_agent[:40] }}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.target }}</td>
+            <td>{% if r.token_valid %}✓{% else %}✗{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top:8px"><a href="/admin/log">Alle Entscheidungen →</a></p>
+</div>
+{% endblock %}

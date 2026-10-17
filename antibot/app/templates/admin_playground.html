@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% set active = "playground" %}
+{% block content %}
+<div class="page-header"><h1>Playground</h1></div>
+<p class="muted">Simuliere Request-Signale, sieh was der Scorer draus macht. Nix wird geloggt oder rate-limited.</p>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Signals</h3>
+        <form method="post" action="/admin/playground">
+            <label>Client IP</label>
+            <input name="ip" value="{{ form.ip if form else '' }}" placeholder="1.2.3.4">
+
+            <label>User-Agent</label>
+            <input name="user_agent" value="{{ form.user_agent if form else '' }}" placeholder="Mozilla/5.0 …">
+
+            <label>WebGL vendor (leer = kein GPU-Fingerprint)</label>
+            <input name="webgl_vendor" value="{{ form.webgl_vendor if form else '' }}" placeholder="NVIDIA GeForce …">
+
+            <label>Canvas hash (leer = kein Canvas)</label>
+            <input name="canvas_hash" value="{{ form.canvas_hash if form else '' }}" placeholder="abc123">
+
+            <label>Submit-Time (ms)</label>
+            <input name="submit_ms" type="number" value="{{ form.submit_ms if form else 3000 }}" min="0">
+
+            <label style="display:flex;gap:6px;align-items:center;margin-top:8px">
+                <input type="checkbox" name="webdriver" value="true"
+                       {% if form and form.webdriver == 'true' %}checked{% endif %}>
+                navigator.webdriver === true
+            </label>
+            <label style="display:flex;gap:6px;align-items:center">
+                <input type="checkbox" name="honeypot" value="1"
+                       {% if form and form.honeypot %}checked{% endif %}>
+                Honeypot befüllt
+            </label>
+
+            <button class="btn btn-primary btn-sm" style="margin-top:12px">Scoren</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Result</h3>
+        {% if result %}
+        <p><strong>Verdict:</strong>
+            {% if result.verdict_hint == 'allow' %}<span class="v-allow">allow</span>
+            {% elif result.verdict_hint == 'challenge' %}<span class="v-chal">challenge</span>
+            {% else %}<span class="v-block">block</span>{% endif %}
+        </p>
+        <p><strong>Score:</strong> {{ result.score }} / 100</p>
+        <p><strong>Network:</strong>
+            ASN <code>{{ result.network.asn }}</code>,
+            <code>{{ result.network.org }}</code>,
+            {{ result.network.country }}
+            {% if result.network.is_hosting %}<span class="badge badge-warn">Hosting</span>{% endif %}
+        </p>
+        <p><strong>Signals:</strong></p>
+        <pre style="background:#f5f5f5;padding:8px;border-radius:4px;font-size:11px">{{ result.signals|tojson(indent=2) }}</pre>
+        {% else %}
+        <p class="muted">Führ links den Test aus.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

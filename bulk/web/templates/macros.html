@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %} — Macros{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Macros</h1>
+</div>
+
+{% if flash %}
+<div class="alert alert-success">{{ flash }}</div>
+{% endif %}
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Add Macro</h3>
+        <form method="post" action="/macros/add">
+            <label>Macro Name</label>
+            <input name="name" placeholder="e.g. greeting" required>
+            <div class="form-help">Used as {name} in subjects and HTML</div>
+
+            <label>Values (one per line)</label>
+            <textarea name="values" rows="4" placeholder="Hello&#10;Hi there&#10;Good day"></textarea>
+            <div class="form-help">One value per line — random pick each send (or rotate)</div>
+
+            <div style="margin-top:12px">
+                <button class="btn btn-primary">Add Macro</button>
+            </div>
+        </form>
+    </div>
+    <div class="card">
+        <h3>Import / Export</h3>
+        <div class="btn-group" style="margin-bottom:12px">
+            <a href="/macros/export" class="btn btn-secondary btn-sm">Export All as JSON</a>
+        </div>
+        <form method="post" action="/macros/import" enctype="multipart/form-data">
+            <label>Import from JSON</label>
+            <input type="file" name="file" accept=".json" required>
+            <div style="margin-top:10px">
+                <button class="btn btn-primary btn-sm">Import</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>All Macros <span class="count">{{ macros|length }}</span></h3>
+    </div>
+
+    {% if macros %}
+    {% for m in macros %}
+    <details>
+        <summary>
+            <code style="color:var(--accent);font-weight:600">{{"{"}}{{ m.name }}{{"}"}}</code>
+            <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                <span class="badge badge-info">{{ m.values|length }} value{{ 's' if m.values|length != 1 }}</span>
+                <span style="font-size:11px;color:var(--fg2)">rotate: {{ m.rotate_every or 'random' }}</span>
+            </span>
+        </summary>
+        <div class="details-body" style="padding-top:12px">
+            <form method="post" action="/macros/{{ m.id }}/save">
+                <label>Values (one per line)</label>
+                <textarea name="values" rows="{{ [m.values|length + 1, 3]|max }}" style="font-family:monospace;font-size:12px">{{ m.values|join('\n') }}</textarea>
+
+                <div class="form-row" style="margin-top:10px">
+                    <div>
+                        <label>Rotate Every N Sends</label>
+                        <input name="rotate_every" type="number" value="{{ m.rotate_every or 0 }}" min="0">
+                        <div class="form-help">0 = random pick</div>
+                    </div>
+                    <div class="shrink" style="display:flex;gap:8px;align-items:flex-end">
+                        <button class="btn btn-primary btn-sm">Save</button>
+                        <form method="post" action="/macros/{{ m.id }}/delete"
+                              onsubmit="return confirm('Delete macro {{ m.name }}?')">
+                            <button class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </details>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">{x}</div>
+        <p>No macros defined. Add one above or import from JSON.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

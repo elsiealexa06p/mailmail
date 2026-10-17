@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %} — Composer{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Composer</h1>
+</div>
+
+<!-- Template List -->
+<div class="card">
+    <div class="card-header">
+        <h3>Templates <span class="count">{{ templates|length }}</span></h3>
+    </div>
+
+    {% if templates %}
+    {% for t in templates %}
+    <details>
+        <summary>
+            {{ t.name }}
+            <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                {% if t.html_files %}
+                <span class="badge badge-info">{{ t.html_files|length }} HTML{{ 's' if t.html_files|length > 1 }}</span>
+                {% endif %}
+                {% if t.pdf_path %}
+                <span class="badge badge-running">PDF {{ 'macro' if t.pdf_macro_enabled else 'static' }}</span>
+                {% endif %}
+                {% if t.subject_macro %}
+                <span style="font-size:11px;color:var(--fg2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.subject_macro }}</span>
+                {% endif %}
+            </span>
+        </summary>
+        <div class="details-body" style="padding-top:16px">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab(this.closest('details'), 'tpl-settings-{{ t.id }}')">Settings</button>
+                <button class="tab-btn" onclick="showTab(this.closest('details'), 'tpl-html-{{ t.id }}')">HTML Files <span class="count" style="margin-left:4px">{{ t.html_files|length }}</span></button>
+                <button class="tab-btn" onclick="showTab(this.closest('details'), 'tpl-paste-{{ t.id }}')">Paste HTML</button>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="tpl-settings-{{ t.id }}" class="tab-content active">
+                <form method="post" action="/composer/{{ t.id }}/save">
+                    <div class="grid-2">
+                        <div>
+                            <label>Template Name</label>
+                            <input name="name" value="{{ t.name }}" required>
+
+                            <label>Subject Line</label>
+                            <input name="subject_macro" value="{{ t.subject_macro or '' }}"
+                                   placeholder="{greeting} — News for {email_user}">
+                            <div class="form-help">Supports macros: {macro_name}, {email_user}, {domain}</div>
+
+                            <label>HTML Rotate Every N Sends</label>
+                            <input name="html_rotate_every" type="number" value="{{ t.html_rotate_every or 0 }}" min="0">
+                            <div class="form-help">0 = random pick each send</div>
+                        </div>
+                        <div>
+                            <label>PDF Attachment Path</label>
+                            <input name="pdf_path" value="{{ t.pdf_path or '' }}" placeholder="/path/to/document.pdf">
+
+                            <label>PDF Macro</label>
+                            <select name="pdf_macro_enabled">
+                                <option value="0" {{ 'selected' if not t.pdf_macro_enabled }}>Disabled</option>
+                                <option value="1" {{ 'selected' if t.pdf_macro_enabled }}>Enabled — unique hash per email</option>
+                            </select>
+                            <div class="form-help">Fills PDF form fields for unique hash per attachment</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:16px" class="btn-group">
+                        <button class="btn btn-primary btn-sm">Save Settings</button>
+                        <form method="post" action="/composer/{{ t.id }}/delete"
+                              onsubmit="return confirm('Delete template {{ t.name }}?')">
+                            <button class="btn btn-danger btn-sm">Delete Template</button>
+                        </form>
+                    </div>
+                </form>
+            </div>
+
+            <!-- HTML Files Tab -->
+            <div id="tpl-html-{{ t.id }}" class="tab-content">
+                {% if t.html_files %}
+                <div style="margin-bottom:16px">
+                    {% for f in t.html_files %}
+                    <div class="file-item">
+                        <span class="file-name" title="{{ f }}">{{ f.split('/')[-1] }}</span>
+                        <span style="font-size:11px;color:var(--fg2);white-space:nowrap">{{ f | truncate(50) }}</span>
+                        <form method="post" action="/composer/{{ t.id }}/remove-html" style="display:inline">
+                            <input type="hidden" name="html_path" value="{{ f }}">
+                            <button class="btn btn-danger btn-xs btn-icon" title="Remove">&#10005;</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info" style="margin-bottom:12px">
+                    No HTML files attached. Upload files or paste HTML code.
+                </div>
+                {% endif %}
+
+                <form method="post" action="/composer/{{ t.id }}/upload-html" enctype="multipart/form-data">
+                    <label>Upload HTML Files (select multiple)</label>
+                    <input type="file" name="files" accept=".html,.htm" multiple required>
+                    <div style="margin-top:10px">
+                        <button class="btn btn-primary btn-sm">Upload Files</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Paste HTML Tab -->
+            <div id="tpl-paste-{{ t.id }}" class="tab-content">
+                <form method="post" action="/composer/{{ t.id }}/paste-html">
+                    <label>Paste HTML Source Code</label>
+                    <textarea name="html_content" rows="10" placeholder="<!DOCTYPE html>&#10;<html>&#10;<body>&#10;  <p>Hello {email_user},</p>&#10;</body>&#10;</html>" style="font-family:monospace;font-size:12px"></textarea>
+                    <div class="form-help">Will be saved as a new HTML file and added to this template.</div>
+                    <div style="margin-top:10px">
+                        <button class="btn btn-primary btn-sm">Save as HTML File</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </details>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">&#9998;</div>
+        <p>No templates yet. Create one below.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Template -->
+<details {{ 'open' if not templates }}>
+    <summary>Create New Template</summary>
+    <div class="details-body" style="padding-top:16px">
+        <form method="post" action="/composer/add">
+            <div class="grid-2">
+                <div>
+                    <label>Template Name</label>
+                    <input name="name" placeholder="e.g. April Newsletter" required>
+
+                    <label>Subject Line</label>
+                    <input name="subject_macro" placeholder="{greeting} — News for {email_user}">
+                    <div class="form-help">Supports macros: {macro_name}, {email_user}, {domain}</div>
+                </div>
+                <div>
+                    <label>PDF Attachment (optional)</label>
+                    <input name="pdf_path" placeholder="/path/to/document.pdf">
+
+                    <label>PDF Macro</label>
+                    <select name="pdf_macro_enabled">
+                        <option value="0">Disabled</option>
+                        <option value="1">Enabled — unique hash per email</option>
+                    </select>
+
+                    <label>HTML Rotate Every N Sends</label>
+                    <input name="html_rotate_every" type="number" value="0" min="0">
+                </div>
+            </div>
+            <label>HTML Files (one path per line)</label>
+            <textarea name="html_files" rows="3" placeholder="/path/to/template1.html&#10;/path/to/template2.html" style="font-family:monospace;font-size:12px"></textarea>
+            <div class="form-help">You can also upload files after creating the template.</div>
+            <div style="margin-top:16px">
+                <button class="btn btn-primary">Create Template</button>
+            </div>
+        </form>
+    </div>
+</details>
+{% endblock %}

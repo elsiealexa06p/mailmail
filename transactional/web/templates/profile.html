@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %} — Profile{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Profile</h1></div>
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Profile Settings</h3>
+        <form method="post" action="/profile/update">
+            <label>Username</label>
+            <input value="{{ user.username }}" disabled style="background:var(--bg3);color:var(--fg2)">
+            <label>Display Name</label>
+            <input name="display_name" value="{{ user.display_name or '' }}">
+            <div style="margin-top:12px"><button class="btn btn-primary">Save</button></div>
+        </form>
+    </div>
+    <div class="card">
+        <h3>Sidebar Logo</h3>
+        {% if user.logo_path %}
+        <div style="margin-bottom:12px;text-align:center;padding:12px;background:var(--bg);border-radius:var(--radius)">
+            <img src="{{ user.logo_path }}" style="max-width:140px;max-height:50px;object-fit:contain">
+        </div>
+        <form method="post" action="/profile/logo/delete" style="margin-bottom:12px">
+            <button class="btn btn-danger btn-sm">Remove Logo</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/profile/logo" enctype="multipart/form-data">
+            <label>Upload Logo</label>
+            <input type="file" name="logo" accept=".png,.jpg,.jpeg,.svg,.webp" required>
+            <div class="form-help">Max 2MB. Shown in sidebar.</div>
+            <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Upload</button></div>
+        </form>
+    </div>
+</div>
+<div class="card" style="max-width:400px">
+    <h3>Change Password</h3>
+    <form method="post" action="/profile/password">
+        <label>Current Password</label><input name="current_password" type="password" required>
+        <label>New Password (min 6)</label><input name="new_password" type="password" required>
+        <div style="margin-top:12px"><button class="btn btn-danger">Change Password</button></div>
+    </form>
+</div>
+{% endblock %}

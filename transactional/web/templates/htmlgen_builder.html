@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %} — HTML Builder{% endblock %}
+{% block content %}
+<div class="page-header"><h1>HTML Builder</h1></div>
+
+<div style="display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start">
+
+    <!-- LEFT: Block palette + Stack -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+            <div class="card-header"><h3>Blocks</h3></div>
+            <div style="padding:8px;display:flex;flex-wrap:wrap;gap:4px">
+                {% for name, variants in all_blocks.items() %}
+                <button class="btn btn-secondary btn-xs" style="text-align:left"
+                        onclick="addBlock('{{ name }}')">
+                    + {{ name|capitalize }} <span style="color:var(--fg2);font-size:10px">({{ variants|length }})</span>
+                </button>
+                {% endfor %}
+                {% if custom_placeholders %}
+                {% for cp in custom_placeholders %}
+                <button class="btn btn-xs" style="text-align:left;background:var(--accent);color:#fff;border-color:var(--accent)"
+                        onclick="addCustomBlock('{{ cp.name }}')">
+                    + {{ '{' }}{{ cp.name }}{{ '}' }}
+                </button>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3>Layout Stack</h3></div>
+            <div style="padding:12px">
+                <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                    <select id="base-layout" style="flex:1" onchange="updatePreview()">
+                        {% for l in layout_names %}
+                        <option value="{{ l }}" {{ 'selected' if l == 'card' }}>{{ l }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="color" id="pc-color" value="#005eb8" style="width:40px;height:34px;padding:2px;cursor:pointer" onchange="updatePreview()">
+                    <input type="color" id="ac-color" value="#c0392b" style="width:40px;height:34px;padding:2px;cursor:pointer" onchange="updatePreview()">
+                </div>
+
+                <div id="block-stack" style="min-height:60px"></div>
+
+                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-primary btn-sm" onclick="updatePreview()">Refresh</button>
+                    <button class="btn btn-secondary btn-sm" onclick="loadDefault()">Reset</button>
+                </div>
+
+                <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:12px">
+                    <label>Save as Layout</label>
+                    <div style="display:flex;gap:8px">
+                        <input id="save-name" placeholder="custom-name" style="flex:1">
+                        <button class="btn btn-success btn-sm" onclick="saveLayout()">Save</button>
+                    </div>
+                    <div id="save-result" style="margin-top:8px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Live preview -->
+    <div class="card" style="position:sticky;top:16px">
+        <div class="card-header"><h3>Preview</h3></div>
+        <div id="preview-container" style="padding:0;resize:vertical;overflow:auto;min-height:400px;height:85vh">
+            <iframe id="preview-frame" srcdoc="" style="width:100%;height:100%;border:none;border-radius:0 0 4px 4px"></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+const allBlocks = {{ all_blocks_json|safe }};
+const customPlaceholders = {{ custom_placeholders_json|safe }};
+const genericWrappers = {{ generic_wrappers_json|safe }};
+const blockStack = [];
+let blockCounter = 0;
+
+function addBlock(name, variantId) {
+    const variants = allBlocks[name] || [];
+    if (!variants.length) return;
+    const id = blockCounter++;
+    const chosen = variantId || 'random';
+    blockStack.push({ id, name, variant: chosen, custom: false });
+    renderStack();
+    updatePreview();
+}
+
+function addCustomBlock(name) {
+    const id = blockCounter++;
+    blockStack.push({ id, name, variant: 'custom', custom: true, placeholder: name, wrapper: 'plain' });
+    renderStack();
+    updatePreview();
+}
+
+function changeWrapper(id, val) {
+    const block = blockStack.find(b => b.id === id);
+    if (block) block.wrapper = val;
+    updatePreview();
+}
+
+function removeBlock(id) {
+    const idx = blockStack.findIndex(b => b.id === id);
+    if (idx >= 0) blockStack.splice(idx, 1);
+    renderStack();
+    updatePreview();
+}
+
+function moveBlock(id, dir) {
+    const idx = blockStack.findIndex(b => b.id === id);
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= blockStack.length) return;
+    [blockStack[idx], blockStack[newIdx]] = [blockStack[newIdx], blockStack[idx]];
+    renderStack();
+    updatePreview();
+}
+
+function changeVariant(id, val) {
+    const block = blockStack.find(b => b.id === id);
+    if (block) block.variant = val;
+    updatePreview();
+}
+
+function renderStack() {
+    const container = document.getElementById('block-stack');
+    if (!blockStack.length) {
+        container.innerHTML = '<p style="color:var(--fg2);text-align:center;padding:20px">Click blocks on the left to add them.</p>';
+        return;
+    }
+    let html = '';
+    blockStack.forEach((b, i) => {
+        let label, middle, bg;
+        if (b.custom) {
+            label = '{' + b.placeholder + '}';
+            let wOpts = '';
+            genericWrappers.forEach(w => {
+                const sel = b.wrapper === w.name ? ' selected' : '';
+                wOpts += '<option value="' + w.name + '"' + sel + '>' + w.name + '</option>';
+            });
+            middle = '<select style="flex:1;font-size:12px" onchange="changeWrapper(' + b.id + ',this.value)">' + wOpts + '</select>';
+            bg = '#fffde7';
+        } else {
+            label = b.name;
+            const variants = allBlocks[b.name] || [];
+            let options = '<option value="random"' + (b.variant === 'random' ? ' selected' : '') + '>Random</option>';
+            variants.forEach(v => {
+                const sel = b.variant === v.variant ? ' selected' : '';
+                const tags = v.tags.length ? ' (' + v.tags.join(', ') + ')' : '';
+                options += '<option value="' + v.variant + '"' + sel + '>' + v.variant + tags + '</option>';
+            });
+            middle = '<select style="flex:1;font-size:12px" onchange="changeVariant(' + b.id + ',this.value)">' + options + '</select>';
+            bg = '#f8f9fa';
+        }
+        html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;margin-bottom:4px;background:' + bg + ';border-radius:4px;border:1px solid ' + (b.custom ? '#f9a825' : 'var(--border)') + '">'
+            + '<span style="font-weight:500;min-width:70px;font-size:13px;white-space:nowrap">' + label + '</span>'
+            + middle
+            + '<button class="btn btn-xs" onclick="moveBlock(' + b.id + ',-1)" style="padding:2px 6px">&uarr;</button>'
+            + '<button class="btn btn-xs" onclick="moveBlock(' + b.id + ',1)" style="padding:2px 6px">&darr;</button>'
+            + '<button class="btn btn-xs" style="color:var(--red);padding:2px 6px" onclick="removeBlock(' + b.id + ')">&times;</button>'
+            + '</div>';
+    });
+    container.innerHTML = html;
+}
+
+function updatePreview() {
+    const data = {
+        layout: document.getElementById('base-layout').value,
+        primary_color: document.getElementById('pc-color').value,
+        accent_color: document.getElementById('ac-color').value,
+        blocks: JSON.stringify(blockStack.map(b => {
+            const entry = { name: b.name, variant: b.variant };
+            if (b.custom) { entry.custom = true; entry.placeholder = b.placeholder; entry.wrapper = b.wrapper || 'plain'; }
+            return entry;
+        }))
+    };
+    const params = new URLSearchParams(data);
+    fetch('/htmlgen/builder/preview', { method: 'POST', body: params,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    .then(r => r.text())
+    .then(html => {
+        document.getElementById('preview-frame').srcdoc = html;
+    });
+}
+
+function getSaveData() {
+    return {
+        layout_name: document.getElementById('save-name').value,
+        layout_base: document.getElementById('base-layout').value,
+        blocks: JSON.stringify(blockStack.map(b => ({ name: b.name, variant: b.variant })))
+    };
+}
+
+function saveLayout() {
+    const data = new URLSearchParams({
+        layout_name: document.getElementById('save-name').value,
+        layout_base: document.getElementById('base-layout').value,
+        blocks: JSON.stringify(blockStack.map(b => {
+            const entry = { name: b.name, variant: b.variant };
+            if (b.custom) { entry.custom = true; entry.placeholder = b.placeholder; entry.wrapper = b.wrapper || 'plain'; }
+            return entry;
+        }))
+    });
+    fetch('/htmlgen/builder/save', { method: 'POST', body: data,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    .then(r => r.text())
+    .then(html => { document.getElementById('save-result').innerHTML = html; });
+}
+
+function loadDefault() {
+    blockStack.length = 0;
+    blockCounter = 0;
+    ['logo','referenz','satz','hinweis','frist','link','gruss','footer'].forEach(n => addBlock(n));
+}
+
+loadDefault();
+</script>
+{% endblock %}

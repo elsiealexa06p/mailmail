@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% set active = "policies" %}
+{% block content %}
+<div class="page-header"><h1>Policies</h1></div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>ASN-Regeln</h3>
+        <p class="muted">ASN wie <code>AS16509</code>. Verdict = <code>allow</code>, <code>block</code>, oder <code>score:20</code> (Score-Delta).</p>
+        <table style="font-size:12px">
+            <thead><tr><th>ASN</th><th>Verdict</th><th>Note</th><th></th></tr></thead>
+            <tbody>
+            {% for r in asn_rules %}
+            <tr>
+                <td style="font-family:monospace">{{ r.asn }}</td>
+                <td><code>{{ r.verdict }}</code></td>
+                <td>{{ r.note }}</td>
+                <td><form method="post" action="/admin/policies/asn/{{ r.asn }}/delete" style="display:inline"><button class="btn btn-danger btn-xs">×</button></form></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <form method="post" action="/admin/policies/asn/add" style="margin-top:8px;display:flex;gap:6px">
+            <input name="asn" placeholder="AS16509" style="width:100px">
+            <input name="verdict" placeholder="block / allow / score:20" style="flex:1">
+            <input name="note" placeholder="note" style="flex:1">
+            <button class="btn btn-primary btn-sm">Add</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>IP-Regeln</h3>
+        <p class="muted">Einzelne IPs whitelisten / blacklisten (überschreibt alle anderen Signale).</p>
+        <table style="font-size:12px">
+            <thead><tr><th>IP</th><th>Verdict</th><th>Note</th><th></th></tr></thead>
+            <tbody>
+            {% for r in ip_rules %}
+            <tr>
+                <td style="font-family:monospace">{{ r.ip }}</td>
+                <td><code>{{ r.verdict }}</code></td>
+                <td>{{ r.note }}</td>
+                <td><form method="post" action="/admin/policies/ip/{{ r.ip }}/delete" style="display:inline"><button class="btn btn-danger btn-xs">×</button></form></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <form method="post" action="/admin/policies/ip/add" style="margin-top:8px;display:flex;gap:6px">
+            <input name="ip" placeholder="1.2.3.4" style="width:130px">
+            <select name="verdict">
+                <option value="allow">allow</option>
+                <option value="block">block</option>
+            </select>
+            <input name="note" placeholder="note" style="flex:1">
+            <button class="btn btn-primary btn-sm">Add</button>
+        </form>
+    </div>
+</div>
+
+<div class="card" style="margin-top:20px">
+    <h3>Länder-Score-Deltas</h3>
+    <p class="muted">ISO-2-Ländercode (z.B. <code>DE</code>, <code>RU</code>). Delta wird zum Score addiert (negativ = weniger streng, positiv = strenger).</p>
+    <table style="font-size:12px">
+        <thead><tr><th>CC</th><th>Delta</th><th>Note</th><th></th></tr></thead>
+        <tbody>
+        {% for r in country_rules %}
+        <tr>
+            <td>{{ r.cc }}</td>
+            <td>{{ r.score_delta }}</td>
+            <td>{{ r.note }}</td>
+            <td><form method="post" action="/admin/policies/country/{{ r.cc }}/delete" style="display:inline"><button class="btn btn-danger btn-xs">×</button></form></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <form method="post" action="/admin/policies/country/add" style="margin-top:8px;display:flex;gap:6px">
+        <input name="cc" placeholder="DE" maxlength="2" style="width:60px">
+        <input name="delta" type="number" value="0" style="width:80px">
+        <input name="note" placeholder="note" style="flex:1">
+        <button class="btn btn-primary btn-sm">Add</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %} — SMTP Check{% endblock %}
+{% block content %}
+<div class="page-header"><h1>SMTP Check (Send + IMAP Verify)</h1></div>
+
+<div class="card">
+    <div class="card-header"><h3>New Check</h3></div>
+    <p style="font-size:12px;color:var(--fg2);margin:0 0 10px">
+        Sends one plain-text probe from every SMTP in the chosen list, via the selected
+        proxy, to the receiver mailbox — then opens IMAP and marks each SMTP as
+        <strong>delivered</strong>, <strong>invalid</strong> (nothing showed up), or
+        <strong>connection issue</strong> (proxy / auth / TLS / timeout).
+    </p>
+    <form hx-post="/smtp-check/run" hx-target="#run-result" hx-swap="innerHTML">
+        <div class="grid-2">
+            <div>
+                <label>SMTP List</label>
+                <select name="smtp_list_id" required>
+                    <option value="">— Pick a list —</option>
+                    {% for l in smtp_lists %}
+                    <option value="{{ l.id }}">{{ l.name }} ({{ l.count }})</option>
+                    {% endfor %}
+                </select>
+                {% if not smtp_lists %}
+                <div class="form-help" style="color:var(--red)">
+                    No SMTP lists — add one on the <a href="/smtps" style="color:var(--accent)">SMTPs</a> page.
+                </div>
+                {% endif %}
+
+                <label style="margin-top:8px">Receiver Mailbox</label>
+                <select name="receiver_account_id" required>
+                    <option value="">— Pick a mailbox —</option>
+                    {% for a in inbox_accounts %}
+                    <option value="{{ a.id }}">{{ a.email }} ({{ a.imap_host }})</option>
+                    {% endfor %}
+                </select>
+                {% if not inbox_accounts %}
+                <div class="form-help" style="color:var(--red)">
+                    No inbox accounts — add one on the
+                    <a href="/inboxtest" style="color:var(--accent)">Inbox Test</a> page.
+                </div>
+                {% endif %}
+
+                <label style="margin-top:8px">Proxy (required)</label>
+                <select name="proxy_id">
+                    <option value="0">Use global proxy config</option>
+                    {% for p in proxies %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.proxy_type }})</option>
+                    {% endfor %}
+                </select>
+                <div class="form-help">
+                    Every SMTP connection is routed through a SOCKS5 proxy — pick a
+                    specific one here, or leave on the global config from
+                    <a href="/proxies" style="color:var(--accent)">Proxies</a>.
+                </div>
+            </div>
+            <div>
+                <label>Job Name (optional)</label>
+                <input name="name" placeholder="e.g. t-online sweep">
+
+                <label style="margin-top:8px">Wait Seconds before IMAP check</label>
+                <input name="wait_seconds" type="number" value="90" min="15" max="900">
+                <div class="form-help">t-online / Gmail tend to deliver within a minute; give slow senders more.</div>
+
+                <label style="margin-top:8px">From Name</label>
+                <input name="from_name" value="Test">
+
+                <label style="margin-top:8px">Subject</label>
+                <input name="subject" value="Hallo">
+
+                <label style="margin-top:8px">Body (plain text)</label>
+                <textarea name="body_text" rows="3">Hallo, das ist ein kurzer Verbindungs-Test. Kein Werbeinhalt.</textarea>
+            </div>
+        </div>
+        <div style="margin-top:10px">
+            <button class="btn btn-primary"
+                    {% if not smtp_lists or not inbox_accounts %}disabled{% endif %}>
+                Start Check
+            </button>
+        </div>
+    </form>
+    <div id="run-result" style="margin-top:10px">
+        {% if progress.running %}
+        <div hx-get="/smtp-check/progress" hx-trigger="load, every 2s" hx-swap="outerHTML"></div>
+        {% endif %}
+    </div>
+</div>
+
+{% if jobs %}
+<div class="card">
+    <div class="card-header"><h3>Previous Jobs</h3></div>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th><th>Name</th><th>Source</th><th>Receiver</th><th>Proxy</th>
+                <th>Delivered</th><th>Invalid</th><th>Conn. Issues</th><th>Status</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for j in jobs %}
+        <tr>
+            <td style="font-family:monospace">{{ j.id }}</td>
+            <td>{{ j.name }}</td>
+            <td>{{ j.source_list_name or '—' }}</td>
+            <td style="font-family:monospace;font-size:12px">{{ j.receiver_email }}</td>
+            <td style="font-size:12px;color:var(--fg2)">{{ j.proxy_name or 'global' }}</td>
+            <td><span style="color:var(--green);font-weight:600">{{ j.delivered }}</span></td>
+            <td><span style="color:var(--red)">{{ j.invalid }}</span></td>
+            <td><span style="color:var(--orange,#c88400)">{{ j.conn_errors }}</span></td>
+            <td>
+                {% if j.status == 'DONE' %}<span class="badge badge-running">DONE</span>
+                {% elif j.status == 'FAILED' %}<span class="badge badge-failed">FAILED</span>
+                {% else %}<span class="badge badge-draft">{{ j.status }}</span>{% endif %}
+            </td>
+            <td style="white-space:nowrap">
+                <a href="/smtp-check/job/{{ j.id }}" class="btn btn-secondary btn-xs">Open</a>
+                <form method="post" action="/smtp-check/job/{{ j.id }}/delete" style="display:inline"
+                      onsubmit="return confirm('Delete this job + all its results?')">
+                    <button class="btn btn-danger btn-xs">Del</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

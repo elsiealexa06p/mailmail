@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %} — Fast Deploy{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Fast Deploy</h1></div>
+
+<div class="card" style="margin-bottom:8px;padding:12px">
+    <div class="grid-2">
+        <div>
+            <label>Domain</label>
+            <input id="fd-domain" placeholder="domainxy.de" style="font-weight:500">
+        </div>
+        <div>
+            <label>Cloudflare Account</label>
+            <select id="fd-cf-account">
+                {% for a in cf_accounts %}
+                <option value="{{ a.id }}">{{ a.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Step 1: DNS + DMARC -->
+<details open>
+    <summary>1. DNS Records + DMARC</summary>
+    <div class="details-body" style="padding-top:12px">
+        <label>Paste SES Records</label>
+        <textarea id="fd-ses" rows="6" placeholder="CNAME&#10;abc123._domainkey.domain.de&#10;abc123.dkim.amazonses.com&#10;&#10;TXT&#10;_amazonses.domain.de&#10;&quot;verificationtoken&quot;" style="font-family:monospace;font-size:12px"></textarea>
+        <div class="grid-2" style="margin-top:8px">
+            <div>
+                <label>DMARC Policy</label>
+                <select id="fd-dmarc">
+                    <option value="none">none (monitoring)</option>
+                    <option value="quarantine">quarantine</option>
+                    <option value="reject">reject</option>
+                </select>
+            </div>
+            <div style="display:flex;align-items:flex-end">
+                <button class="btn btn-primary btn-sm" onclick="runStep('dns')">Apply DNS + DMARC</button>
+            </div>
+        </div>
+        <div id="fd-dns-result" style="margin-top:8px"></div>
+    </div>
+</details>
+
+<!-- Step 2: Email Routing -->
+<details>
+    <summary>2. Email Routing</summary>
+    <div class="details-body" style="padding-top:12px">
+        <div class="grid-2">
+            <div>
+                <label>Email Address</label>
+                <div style="display:flex;gap:4px;align-items:center">
+                    <input id="fd-email-user" placeholder="info" style="flex:1">
+                    <span style="color:var(--fg2)">@</span>
+                    <span id="fd-email-domain" style="color:var(--fg2);font-family:monospace">domain</span>
+                </div>
+            </div>
+            <div>
+                <label>Forward To</label>
+                <input id="fd-email-dest" placeholder="ziel@gmail.com">
+            </div>
+        </div>
+        <div style="margin-top:8px">
+            <button class="btn btn-primary btn-sm" onclick="runStep('email')">Setup Email Routing</button>
+        </div>
+        <div id="fd-email-result" style="margin-top:8px"></div>
+    </div>
+</details>
+
+<!-- Step 3: Logos -->
+<details>
+    <summary>3. Logo Upload (R2)</summary>
+    <div class="details-body" style="padding-top:12px">
+        <div class="grid-2">
+            <div>
+                <label>R2 Bucket</label>
+                <input id="fd-bucket" placeholder="logos">
+                <label>Logo Domain</label>
+                <input id="fd-logo-domain" placeholder="domainxy.de oder cdn.domainxy.de">
+            </div>
+            <div>
+                <label>Logo Files</label>
+                <input type="file" id="fd-logo-files" multiple accept="image/*">
+            </div>
+        </div>
+        <div style="margin-top:8px">
+            <button class="btn btn-primary btn-sm" onclick="runStep('logos')">Upload Logos</button>
+        </div>
+        <div id="fd-logos-result" style="margin-top:8px"></div>
+    </div>
+</details>
+
+<!-- Step 4: Template Clone -->
+<details>
+    <summary>4. Template Clone</summary>
+    <div class="details-body" style="padding-top:12px">
+        <div class="grid-2">
+            <div>
+                <label>Source Template</label>
+                <select id="fd-source-tpl">
+                    <option value="">— Select —</option>
+                    {% for t in templates %}
+                    <option value="{{ t.id }}">{{ t.name }} ({{ t.html_files|length }} HTMLs)</option>
+                    {% endfor %}
+                </select>
+                <label>New Template Name</label>
+                <input id="fd-new-tpl-name" placeholder="domainxy.de">
+            </div>
+            <div>
+                <label>Old Domain (in logo URLs)</label>
+                <input id="fd-old-domain" placeholder="altedomain.de">
+                <label>New Domain (replace with)</label>
+                <input id="fd-new-domain" placeholder="domainxy.de">
+            </div>
+        </div>
+        <div style="margin-top:8px">
+            <button class="btn btn-primary btn-sm" onclick="runStep('clone')">Clone & Replace</button>
+        </div>
+        <div id="fd-clone-result" style="margin-top:8px"></div>
+    </div>
+</details>
+
+<!-- Step 5: Unsub Worker -->
+<details>
+    <summary>5. Unsub Worker</summary>
+    <div class="details-body" style="padding-top:12px">
+        <div class="grid-2">
+            <div>
+                <label>Worker Name</label>
+                <input id="fd-worker-name" value="unsub-worker">
+            </div>
+            <div style="display:flex;align-items:flex-end">
+                <button class="btn btn-primary btn-sm" onclick="runStep('unsub')">Deploy Worker</button>
+            </div>
+        </div>
+        <div id="fd-unsub-result" style="margin-top:8px"></div>
+    </div>
+</details>
+
+<script>
+const domainInput = document.getElementById('fd-domain');
+domainInput.addEventListener('input', function() {
+    document.getElementById('fd-email-domain').textContent = this.value || 'domain';
+    document.getElementById('fd-new-domain').value = this.value;
+    document.getElementById('fd-new-tpl-name').value = this.value;
+    document.getElementById('fd-logo-domain').value = this.value;
+});
+
+function runStep(step) {
+    const domain = document.getElementById('fd-domain').value;
+    const cfId = document.getElementById('fd-cf-account').value;
+
+    if (!domain) { alert('Enter domain first'); return; }
+
+    if (step === 'dns') {
+        const data = new URLSearchParams({
+            domain: domain,
+            ses_records: document.getElementById('fd-ses').value,
+            dmarc_policy: document.getElementById('fd-dmarc').value,
+            cf_account_id: cfId
+        });
+        fetch('/fast-deploy/dns', { method: 'POST', body: data,
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'} })
+        .then(r => r.text()).then(h => document.getElementById('fd-dns-result').innerHTML = h);
+    }
+
+    else if (step === 'email') {
+        const user = document.getElementById('fd-email-user').value;
+        const from = user.includes('@') ? user : user + '@' + domain;
+        const data = new URLSearchParams({
+            domain: domain,
+            from_address: from,
+            destination: document.getElementById('fd-email-dest').value,
+            cf_account_id: cfId
+        });
+        fetch('/fast-deploy/email-routing', { method: 'POST', body: data,
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'} })
+        .then(r => r.text()).then(h => document.getElementById('fd-email-result').innerHTML = h);
+    }
+
+    else if (step === 'logos') {
+        const formData = new FormData();
+        formData.append('cf_account_id', cfId);
+        formData.append('bucket', document.getElementById('fd-bucket').value);
+        formData.append('logo_domain', document.getElementById('fd-logo-domain').value);
+        const files = document.getElementById('fd-logo-files').files;
+        for (let i = 0; i < files.length; i++) formData.append('logo_files', files[i]);
+        fetch('/fast-deploy/logos', { method: 'POST', body: formData })
+        .then(r => r.text()).then(h => document.getElementById('fd-logos-result').innerHTML = h);
+    }
+
+    else if (step === 'clone') {
+        const data = new URLSearchParams({
+            source_template_id: document.getElementById('fd-source-tpl').value,
+            new_name: document.getElementById('fd-new-tpl-name').value,
+            old_domain: document.getElementById('fd-old-domain').value,
+            new_domain: document.getElementById('fd-new-domain').value
+        });
+        fetch('/fast-deploy/clone-template', { method: 'POST', body: data,
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'} })
+        .then(r => r.text()).then(h => document.getElementById('fd-clone-result').innerHTML = h);
+    }
+
+    else if (step === 'unsub') {
+        const data = new URLSearchParams({
+            domain: domain,
+            cf_account_id: cfId,
+            worker_name: document.getElementById('fd-worker-name').value
+        });
+        fetch('/fast-deploy/unsub-worker', { method: 'POST', body: data,
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'} })
+        .then(r => r.text()).then(h => document.getElementById('fd-unsub-result').innerHTML = h);
+    }
+}
+</script>
+{% endblock %}

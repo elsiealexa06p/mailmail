@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %} — DNS{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>DNS Manager</h1>
+</div>
+
+{% if not cf_accounts %}
+<div class="alert alert-warning">
+    No Cloudflare accounts configured. <a href="/cloudflare" style="color:var(--accent)">Add one first.</a>
+</div>
+{% endif %}
+
+<div class="card tab-wrap">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('dns-tabs', 'tab-paste')">Paste Records</button>
+        <button class="tab-btn" onclick="showTab('dns-tabs', 'tab-dmarc')">DMARC</button>
+        <button class="tab-btn" onclick="showTab('dns-tabs', 'tab-routing')">Mail Routing</button>
+    </div>
+
+    <div id="dns-tabs">
+        <!-- Paste SES Records -->
+        <div id="tab-paste" class="tab-content active">
+            <div class="grid-2" style="align-items:start">
+                <div>
+                    <form hx-post="/dns/parse" hx-target="#parsed-preview" hx-swap="innerHTML">
+                        <label>Paste DNS Records (SES format or any CNAME/MX/TXT blocks)</label>
+                        <textarea name="raw_text" rows="12" placeholder="CNAME&#10;ld27...._domainkey.vw-can.de&#10;ld27....dkim.amazonses.com&#10;CNAME&#10;vrk2...._domainkey.vw-can.de&#10;vrk2....dkim.amazonses.com&#10;MX&#10;mail.vw-can.de&#10;10 feedback-smtp.eu-central-1.amazonses.com&#10;TXT&#10;mail.vw-can.de&#10;&quot;v=spf1 include:amazonses.com ~all&quot;" style="font-family:monospace;font-size:12px"></textarea>
+                        <div style="margin-top:10px">
+                            <button class="btn btn-primary">Parse & Preview</button>
+                        </div>
+                    </form>
+                </div>
+                <div>
+                    <label>CF Account</label>
+                    <select id="dns-cf-account" name="cf_account_id" onchange="
+                        htmx.ajax('POST', '/dns/zones', {target:'#dns-zone-domain', swap:'innerHTML',
+                            values:{cf_account_id: this.value}})">
+                        {% for a in cf_accounts %}
+                        <option value="{{ a.id }}">{{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label>Target Domain (zone)</label>
+                    <select id="dns-zone-domain" name="zone_domain"
+                            hx-post="/dns/zones"
+                            hx-trigger="click once"
+                            hx-include="#dns-cf-account"
+                            hx-swap="innerHTML">
+                        <option value="">Click to load zones</option>
+                    </select>
+
+                    <div id="parsed-preview" style="margin-top:16px"></div>
+
+                    <div style="margin-top:12px">
+                        <button class="btn btn-success btn-sm"
+                                hx-post="/dns/apply"
+                                hx-target="#apply-result"
+                                hx-swap="innerHTML"
+                                hx-include="#parsed-records"
+                                onclick="
+                                    var el=document.getElementById('parsed-records');
+                                    if(!el){alert('Parse records first');return false;}
+                                    this.setAttribute('hx-vals', JSON.stringify({
+                                        records_json: el.value,
+                                        cf_account_id: document.getElementById('dns-cf-account').value,
+                                        zone_domain: document.getElementById('dns-zone-domain').value
+                                    }));
+                                    htmx.process(this);
+                                ">Apply Records to Cloudflare</button>
+                    </div>
+                    <div id="apply-result" style="margin-top:10px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DMARC Builder -->
+        <div id="tab-dmarc" class="tab-content">
+            <div style="max-width:500px">
+                <h3 style="font-size:14px;margin-bottom:12px">Add DMARC Record</h3>
+                <form hx-post="/dns/dmarc" hx-target="#dmarc-result" hx-swap="innerHTML">
+                    <label>Domain</label>
+                    <input name="domain" placeholder="vw-can.de" required>
+                    <div class="form-help">Record will be created as _dmarc.domain</div>
+
+                    <label>Policy</label>
+                    <select name="policy">
+                        <option value="none">none — monitor only (recommended to start)</option>
+                        <option value="quarantine">quarantine — suspicious mail to spam</option>
+                        <option value="reject">reject — reject unauthorized mail</option>
+                    </select>
+
+                    <label>Percentage</label>
+                    <input name="pct" type="number" value="100" min="0" max="100">
+                    <div class="form-help">% of messages the policy applies to</div>
+
+                    <label>Aggregate Reports (rua)</label>
+                    <input name="rua" placeholder="dmarc-reports@yourdomain.com">
+                    <div class="form-help">Email to receive aggregate DMARC reports</div>
+
+                    <label>Forensic Reports (ruf)</label>
+                    <input name="ruf" placeholder="">
+                    <div class="form-help">Email for per-message failure reports (optional)</div>
+
+                    <label>CF Account</label>
+                    <select name="cf_account_id">
+                        {% for a in cf_accounts %}
+                        <option value="{{ a.id }}">{{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <div style="margin-top:14px">
+                        <button class="btn btn-primary">Add DMARC Record</button>
+                    </div>
+                </form>
+                <div id="dmarc-result" style="margin-top:12px"></div>
+            </div>
+        </div>
+
+        <!-- Mail Routing -->
+        <div id="tab-routing" class="tab-content">
+            <div class="grid-2" style="align-items:start">
+                <div>
+                    <h3 style="font-size:14px;margin-bottom:12px">Email Routing Setup</h3>
+
+                    <label>CF Account</label>
+                    <select id="routing-cf-account">
+                        {% for a in cf_accounts %}
+                        <option value="{{ a.id }}">{{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label>Domain</label>
+                    <input id="routing-domain" placeholder="vw-can.de">
+
+                    <div style="margin-top:12px" class="btn-group">
+                        <button class="btn btn-primary btn-sm"
+                                hx-post="/dns/mail-routing/enable"
+                                hx-target="#routing-result"
+                                hx-swap="innerHTML"
+                                onclick="this.setAttribute('hx-vals', JSON.stringify({
+                                    zone_domain: document.getElementById('routing-domain').value,
+                                    cf_account_id: document.getElementById('routing-cf-account').value
+                                })); htmx.process(this);">Enable & Show DNS</button>
+                        <button class="btn btn-secondary btn-sm"
+                                hx-post="/dns/mail-routing/rules"
+                                hx-target="#routing-rules"
+                                hx-swap="innerHTML"
+                                onclick="this.setAttribute('hx-vals', JSON.stringify({
+                                    zone_domain: document.getElementById('routing-domain').value,
+                                    cf_account_id: document.getElementById('routing-cf-account').value
+                                })); htmx.process(this);">Show Rules</button>
+                    </div>
+
+                    <div id="routing-result" style="margin-top:12px"></div>
+                    <div id="routing-rules" style="margin-top:12px"></div>
+                </div>
+
+                <div>
+                    <h3 style="font-size:14px;margin-bottom:12px">Add Routing Rule</h3>
+
+                    <label>From Address</label>
+                    <input id="route-from" placeholder="info@vw-can.de">
+
+                    <label>Forward To</label>
+                    <select id="route-dest"
+                            hx-post="/dns/mail-routing/destinations"
+                            hx-trigger="click once"
+                            hx-swap="innerHTML"
+                            onclick="this.setAttribute('hx-vals', JSON.stringify({
+                                cf_account_id: document.getElementById('routing-cf-account').value
+                            })); htmx.process(this);">
+                        <option value="">Click to load destinations</option>
+                    </select>
+                    <div class="form-help">Must be verified in CF Email Routing settings</div>
+
+                    <div style="margin-top:10px">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                            <input type="checkbox" id="route-catchall" style="width:auto">
+                            <span>Catch-all (forward ALL addresses)</span>
+                        </label>
+                    </div>
+
+                    <div style="margin-top:14px">
+                        <button class="btn btn-primary btn-sm"
+                                hx-post="/dns/mail-routing/add-rule"
+                                hx-target="#add-rule-result"
+                                hx-swap="innerHTML"
+                                onclick="this.setAttribute('hx-vals', JSON.stringify({
+                                    zone_domain: document.getElementById('routing-domain').value,
+                                    cf_account_id: document.getElementById('routing-cf-account').value,
+                                    from_address: document.getElementById('route-from').value,
+                                    destination: document.getElementById('route-dest').value,
+                                    catch_all: document.getElementById('route-catchall').checked ? 1 : 0
+                                })); htmx.process(this);">Add Rule</button>
+                    </div>
+                    <div id="add-rule-result" style="margin-top:10px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

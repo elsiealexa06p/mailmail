@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %} — Brands{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Brands & Domains</h1>
+</div>
+
+<div class="grid-2" style="align-items:start">
+    <div class="card">
+        <h3>Add Brand</h3>
+        <form method="post" action="/brands/add" class="form-row">
+            <div>
+                <label>Brand Name</label>
+                <input name="name" placeholder="e.g. MyShop Newsletter" required>
+            </div>
+            <div class="shrink">
+                <label>&nbsp;</label>
+                <button class="btn btn-primary">Add</button>
+            </div>
+        </form>
+    </div>
+    <div class="card">
+        <h3>Overview</h3>
+        <div class="grid-3">
+            <div class="metric">
+                <div class="value">{{ brands|length }}</div>
+                <div class="label">Brands</div>
+            </div>
+            <div class="metric">
+                <div class="value">{{ brands|map(attribute='domains')|map('length')|sum }}</div>
+                <div class="label">Domains</div>
+            </div>
+            <div class="metric">
+                <div class="value">{{ brands|map(attribute='used')|sum }}</div>
+                <div class="label">Lists Used</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for b in brands %}
+<div class="card">
+    <div class="card-header">
+        <h3>{{ b.name }} <span class="count">{{ b.domains|length }} domain{{ 's' if b.domains|length != 1 }}</span></h3>
+        <div class="btn-group">
+            <form method="post" action="/brands/{{ b.id }}/delete" style="display:inline"
+                  onsubmit="return confirm('Delete brand {{ b.name }} and all its domains?')">
+                <button class="btn btn-danger btn-sm">Delete Brand</button>
+            </form>
+        </div>
+    </div>
+
+    {% if b.domains %}
+    {% for d in b.domains %}
+    <details>
+        <summary>
+            {{ d.domain }}
+            {% if d.unsub_worker_deployed %}<span class="badge badge-running" style="margin-left:8px">Unsub Active</span>{% endif %}
+        </summary>
+        <div class="details-body" style="padding-top:12px">
+            <form method="post" action="/domains/{{ d.id }}/save">
+                <div class="grid-2">
+                    <div>
+                        <label>From Name</label>
+                        <input name="from_name" value="{{ d.from_name or '' }}" placeholder="Newsletter or {greeting}">
+
+                        <label>From Email</label>
+                        <input name="from_email" value="{{ d.from_email or '' }}" placeholder="news@{{ d.domain }}">
+
+                        <label>Reply-To Email</label>
+                        <input name="reply_to_email" value="{{ d.reply_to_email or '' }}" placeholder="reply@{{ d.domain }}">
+                        <div class="form-help">Leave empty to omit (From is used by default)</div>
+                    </div>
+                    <div>
+                        <label>Bounce Subdomain</label>
+                        <input name="send_subdomain" value="{{ d.send_subdomain or 'mail' }}" placeholder="mail">
+                        <div class="form-help">Only for generic SMTP. SES handles this automatically.</div>
+
+                        <label>Unsub Domain</label>
+                        <input name="unsub_domain" value="{{ d.unsub_domain or '' }}" placeholder="unsub.{{ d.domain }}">
+                        <div class="form-help">Where the unsub worker runs. Default: unsub.{{ d.domain }}</div>
+                    </div>
+                </div>
+                <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <button class="btn btn-primary btn-sm">Save</button>
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            hx-post="/domains/{{ d.id }}/check-unsub"
+                            hx-target="#unsub-status-{{ d.id }}"
+                            hx-swap="innerHTML">Check Unsub Worker</button>
+                    <form method="post" action="/domains/{{ d.id }}/delete"
+                          onsubmit="return confirm('Delete domain {{ d.domain }}?')">
+                        <button class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </div>
+                <div id="unsub-status-{{ d.id }}" style="margin-top:8px">
+                    {% if d.unsub_worker_deployed %}
+                    <span class="badge badge-running">Unsub Worker Active</span>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </details>
+    {% endfor %}
+    {% endif %}
+
+    <div style="margin-top:12px">
+        <form method="post" action="/brands/{{ b.id }}/add-domain" class="form-row">
+            <div>
+                <input name="domain" placeholder="Add domain, e.g. news.example.com" style="margin:0">
+            </div>
+            <div class="shrink">
+                <button class="btn btn-secondary btn-sm">Add Domain</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% if not brands %}
+<div class="card">
+    <div class="empty-state">
+        <div class="icon">&#9733;</div>
+        <p>No brands yet. Add one above to start configuring your sending domains.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

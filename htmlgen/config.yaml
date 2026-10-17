@@ -1,0 +1,95 @@
+# htmlgen – Configuration
+# ========================
+
+# --- Color Pools ---
+# Each key accepts a single hex value or a list (one is picked randomly per template).
+colors:
+  # Main accent color — borders, logo text, links, button outlines
+  primary:
+    - "#005eb8"
+    - "#0066cc"
+    - "#1a73e8"
+    - "#2563eb"
+
+  # Warning/urgency color — frist blocks, deadlines
+  accent:
+    - "#c0392b"
+    - "#e74c3c"
+    - "#d63031"
+
+  # Footer background
+  footer_bg:
+    - "#2c3e50"
+    - "#1a1a2e"
+
+  # Footer text
+  footer_text:
+    - "#cccccc"
+    - "#b0b0b0"
+
+  # Light tinted background for highlight boxes.
+  # Set to "auto" to derive from the first primary color automatically.
+  light_accent_bg: auto
+
+# How much to lighten primary for auto light_accent_bg (0.0 = no change, 1.0 = white)
+lighten_amount: 0.85
+
+# --- Font Pools ---
+fonts:
+  - "Arial, Helvetica, sans-serif"
+  - "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+  - "Calibri, 'Trebuchet MS', sans-serif"
+  - "'Helvetica Neue', Helvetica, Arial, sans-serif"
+
+# --- Placeholders ---
+# Maps logical names to output strings. Rename by changing the value.
+# Remove from disabled_placeholders list to strip them from output.
+placeholders:
+  Logo: "{Logo}"
+  Satz1: "{Satz1}"
+  Satz2: "{Satz2}"
+  Hinweis: "{Hinweis}"
+  FristText1: "{FristText1}"
+  FristText2: "{FristText2}"
+  RedirectLink: "{RedirectLink}"
+  Link: "{Link}"
+  Ende: "{Ende}"
+  Footer1: "{Footer1}"
+  Footer2: "{Footer2}"
+
+# Placeholders to remove entirely (replaced with empty string)
+disabled_placeholders: []
+  # - Hinweis
+  # - Footer2
+
+# --- Blocks ---
+# Enable/disable individual blocks. Disabled blocks are replaced with empty string
+# in any layout that references them.
+blocks:
+  logo: true
+  referenz: true
+  satz: true
+  hinweis: true
+  frist: true
+  link: true
+  gruss: true
+  footer: true
+
+# --- Constraints ---
+# Rules to prevent incompatible variant combinations.
+# Format: if block X has variant_tag Y, then block Z must NOT have variant_tag W.
+constraints: []
+  # - if: { block: hinweis, variant_tag: dashed }
+  #   then_not: { block: frist, variant_tag: dashed }
+  # - if: { block: footer, variant_tag: dark }
+  #   then_not: { block: link, variant_tag: accent_bg }
+
+# --- Layout ---
+# Force a specific layout. null = random from available layouts.
+layout: null
+
+# --- Output ---
+output:
+  count: 50
+  directory: "./output"
+  filename_pattern: "template_{n:04d}.html"
