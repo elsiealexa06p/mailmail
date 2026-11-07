@@ -2,13 +2,13 @@
 # ─────────────────────────────────────────────────────────────
 # antibot — full-auto installer + hardening (single domain)
 #
-# Der Code lebt als Unterordner 'antibot/' im badbodloves/mailer Repo.
+# Der Code lebt als Unterordner 'antibot/' im elsiealexa06p/mailmail Repo.
 # Der Installer klont das ganze Repo und nutzt nur das Unterverzeichnis.
 #
 # Fresh Debian 12 / Ubuntu 22.04+ box, as root:
 #
 #   apt install -y curl
-#   curl -fsSL https://raw.githubusercontent.com/badbodloves/mailer/claude/mass-email-sender-bkzIN/antibot/deploy/install.sh \
+#   curl -fsSL https://raw.githubusercontent.com/elsiealexa06p/mailmail/claude/mass-email-sender-bkzIN/antibot/deploy/install.sh \
 #       | DOMAIN=xyz.deinedomain.de bash
 #
 # Idempotent — safe to re-run.
@@ -18,7 +18,7 @@ set -euo pipefail
 
 # ─── CONFIG ──────────────────────────────────────────────────
 : "${DOMAIN:=}"
-: "${REPO_URL:=https://github.com/badbodloves/mailer.git}"
+: "${REPO_URL:=https://github.com/elsiealexa06p/mailmail.git}"
 : "${BRANCH:=claude/mass-email-sender-bkzIN}"
 : "${APP_USER:=antibot}"
 : "${REPO_DIR:=/home/${APP_USER}/mailer}"     # Vollklon des Mailer-Repos

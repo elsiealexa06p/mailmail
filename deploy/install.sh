@@ -9,7 +9,7 @@
 #
 # Usage:
 #   apt install -y curl
-#   curl -fsSL https://raw.githubusercontent.com/badbodloves/mailer/claude/mass-email-sender-bkzIN/deploy/install.sh \
+#   curl -fsSL https://raw.githubusercontent.com/elsiealexa06p/mailmail/claude/mass-email-sender-bkzIN/deploy/install.sh \
 #       | DOMAIN_TRANS=trans.deinedomain.de DOMAIN_BULK=bulk.deinedomain.de bash
 #
 # Nur eine der beiden Domains setzen → nur dieses Panel wird installiert.
@@ -20,7 +20,7 @@ set -euo pipefail
 # ─── CONFIG ──────────────────────────────────────────────────
 : "${DOMAIN_TRANS:=}"                                             # leer = trans nicht installieren
 : "${DOMAIN_BULK:=}"                                              # leer = bulk nicht installieren
-: "${REPO_URL:=https://github.com/badbodloves/mailer.git}"
+: "${REPO_URL:=https://github.com/elsiealexa06p/mailmail.git}"
 : "${BRANCH:=claude/mass-email-sender-bkzIN}"
 : "${APP_USER:=mailer}"
 : "${APP_DIR:=/home/${APP_USER}/mailer}"
