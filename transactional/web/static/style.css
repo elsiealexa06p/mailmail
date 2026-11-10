@@ -231,7 +231,9 @@ hr, .divider { border: 0; border-top: 1px solid var(--border-light); margin: 16p
     padding: 24px 32px 40px;
     overflow-y: auto;
     min-width: 0;
-    max-width: none;
+    /* Content bleibt wie vor dem Redesign auf ~1200px begrenzt — sonst
+       sieht's auf 27"+-Monitoren wie zerschossenes Admin-Panel aus. */
+    max-width: 1280px;
 }
 
 .page-header {

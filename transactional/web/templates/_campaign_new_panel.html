@@ -1,0 +1,53 @@
+{#
+  _campaign_new_panel.html — fragment template rendered into the drawer
+  when the user clicks "+ Neue Kampagne".
+
+  Context:  smtp_lists, lead_lists, pools
+#}
+<form method="post" action="/campaigns/add">
+    <div class="grid-2">
+        <div>
+            <label>Name</label>
+            <input name="name" placeholder="April Outreach" required autofocus>
+
+            <label>SMTP-Liste</label>
+            <select name="smtp_list_id">
+                <option value="0">—</option>
+                {% for sl in smtp_lists %}
+                <option value="{{ sl.id }}">{{ sl.name }} ({{ sl.count }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Lead-Liste (regulär)</label>
+            <select name="lead_list_id">
+                <option value="0">— Oder Pool unten verwenden —</option>
+                {% for ll in lead_lists %}
+                <option value="{{ ll.id }}">{{ ll.name }} ({{ "{:,}".format(ll.count) }})</option>
+                {% endfor %}
+            </select>
+
+            <div class="divider"></div>
+
+            <label>Lead-Pool (nimmt N aus Pool)</label>
+            <select name="pool_id">
+                <option value="0">— Kein Pool —</option>
+                {% for p in pools %}
+                <option value="{{ p.id }}">{{ p.name }} ({{ "{:,}".format(p.stats.pending) }} verfügbar / {{ "{:,}".format(p.stats.total) }} gesamt)</option>
+                {% endfor %}
+            </select>
+
+            <label>Wieviele Leads aus Pool?</label>
+            <input name="pool_count" type="number" value="10000" min="1">
+
+            <div class="form-help">
+                Leads werden aus dem Pool reserviert und nie gelöscht.
+                Entweder Lead-Liste ODER Pool, nicht beides.
+            </div>
+        </div>
+    </div>
+    <div class="mt-md flex items-center gap-sm">
+        <button class="btn btn-primary">Kampagne erstellen</button>
+        <span class="muted text-xs">Weitere Einstellungen danach im Bearbeiten-Dialog.</span>
+    </div>
+</form>

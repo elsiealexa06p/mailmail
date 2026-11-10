@@ -184,23 +184,59 @@ def _enrich(db, cd):
     return cd
 
 
+def _campaign_panel_context(db, uid: int) -> dict:
+    """Lookup-Listen die die Edit/Create-Panels brauchen. Separat ausgelagert
+    damit die neue /campaigns/{cid}/panel-Route und die /campaigns-Seite
+    dieselben Daten liefern ohne Copy-Paste."""
+    return {
+        "smtp_lists":      [dict(sl, count=db.get_smtp_count(sl["id"])) for sl in db.get_smtp_lists(uid)],
+        "lead_lists":      [dict(ll, count=db.get_lead_count(ll["id"])) for ll in db.get_lead_lists(uid)],
+        "pools":           [dict(p, stats=db.pool_stats(p["id"])) for p in db.get_pools(uid)],
+        "templates":       [dict(t) for t in db.get_templates(uid)],
+        "redirect_pools":  [dict(p, count=db.get_redirect_pool_count(p["id"])) for p in db.get_redirect_pools(uid)],
+        "logo_groups":     [dict(g) for g in db.get_logo_groups(uid)],
+    }
+
+
 @router.get("/campaigns", response_class=HTMLResponse)
 async def campaigns_page(request: Request):
     db = request.app.state.db
     uid = request.state.user["id"]
     campaigns = [_enrich(db, dict(c)) for c in db.get_campaigns(uid)]
-    smtp_lists = [dict(sl, count=db.get_smtp_count(sl["id"])) for sl in db.get_smtp_lists(uid)]
-    lead_lists = [dict(ll, count=db.get_lead_count(ll["id"])) for ll in db.get_lead_lists(uid)]
-    pools = [dict(p, stats=db.pool_stats(p["id"])) for p in db.get_pools(uid)]
-    templates = [dict(t) for t in db.get_templates(uid)]
-    redirect_pools = [dict(p, count=db.get_redirect_pool_count(p["id"])) for p in db.get_redirect_pools(uid)]
-    logo_groups = [dict(g) for g in db.get_logo_groups(uid)]
+    ctx = _campaign_panel_context(db, uid)
     return request.app.state.templates.TemplateResponse(request, "campaigns.html", {
         "active": "campaigns", "campaigns": campaigns,
-        "smtp_lists": smtp_lists, "lead_lists": lead_lists,
-        "pools": pools, "templates": templates,
-        "redirect_pools": redirect_pools,
-        "logo_groups": logo_groups, "db": db,
+        "db": db, **ctx,
+    })
+
+
+# NOTE: specific "new" route defined BEFORE the {cid} route so FastAPI
+# matches /campaigns/new/panel against this one. Otherwise "new" would be
+# fed to the {cid}-handler's int-parser and 422 out.
+@router.get("/campaigns/new/panel", response_class=HTMLResponse)
+async def campaign_new_panel(request: Request):
+    """Empty create-form fragment for the drawer."""
+    db = request.app.state.db
+    uid = request.state.user["id"]
+    ctx = _campaign_panel_context(db, uid)
+    return request.app.state.templates.TemplateResponse(request, "_campaign_new_panel.html", ctx)
+
+
+@router.get("/campaigns/{cid}/panel", response_class=HTMLResponse)
+async def campaign_panel(request: Request, cid: int):
+    """Renders the per-campaign edit/stats/actions tab block as an HTMX
+    fragment that drops into the drawer. Scoped to the current user."""
+    db = request.app.state.db
+    uid = request.state.user["id"]
+    raw = db.get_campaign(cid)
+    if not raw or dict(raw).get("user_id") != uid:
+        return HTMLResponse(
+            '<p class="muted">Kampagne nicht gefunden oder keine Berechtigung.</p>',
+            status_code=404)
+    c = _enrich(db, dict(raw))
+    ctx = _campaign_panel_context(db, uid)
+    return request.app.state.templates.TemplateResponse(request, "_campaign_panel.html", {
+        "c": c, **ctx,
     })
 
 

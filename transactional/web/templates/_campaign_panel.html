@@ -1,0 +1,373 @@
+{#
+  _campaign_panel.html — fragment template rendered into the drawer when
+  the user clicks "Bearbeiten" on a campaign row.
+
+  Context:  c (enriched campaign dict), smtp_lists, lead_lists, pools,
+            templates, redirect_pools, logo_groups
+#}
+<div class="tab-wrap">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab(this.closest('.tab-wrap'), 'c-stats-{{ c.id }}')">Live-Statistiken</button>
+        <button class="tab-btn" onclick="showTab(this.closest('.tab-wrap'), 'c-edit-{{ c.id }}')">Bearbeiten</button>
+        <button class="tab-btn" onclick="showTab(this.closest('.tab-wrap'), 'c-actions-{{ c.id }}')">Aktionen</button>
+    </div>
+
+    <div id="c-stats-{{ c.id }}" class="tab-content active"
+         hx-get="/campaigns/{{ c.id }}/stats" hx-trigger="every 3s" hx-swap="innerHTML">
+        <p class="muted">Lädt …</p>
+    </div>
+
+    <div id="c-edit-{{ c.id }}" class="tab-content">
+        <form method="post" action="/campaigns/{{ c.id }}/save">
+            <div class="grid-2">
+                <div>
+                    <label>Name</label><input name="name" value="{{ c.name }}">
+
+                    <label>SMTP-Liste</label>
+                    <select name="smtp_list_id">
+                        <option value="0">—</option>
+                        {% for sl in smtp_lists %}<option value="{{ sl.id }}" {{ 'selected' if sl.id == c.smtp_list_id }}>{{ sl.name }} ({{ sl.count }})</option>{% endfor %}
+                    </select>
+
+                    <label>Lead-Liste</label>
+                    <select name="lead_list_id">
+                        <option value="0">—</option>
+                        {% for ll in lead_lists %}<option value="{{ ll.id }}" {{ 'selected' if ll.id == c.lead_list_id }}>{{ ll.name }} ({{ "{:,}".format(ll.count) }})</option>{% endfor %}
+                    </select>
+
+                    <label>Template</label>
+                    <select name="template_id">
+                        <option value="0">Alle Templates</option>
+                        {% for tpl in templates %}<option value="{{ tpl.id }}" {{ 'selected' if tpl.id == c.template_id }}>{{ tpl.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Redirect-Pool</label>
+                    <select name="redirect_pool_id">
+                        <option value="0">Alle Redirects</option>
+                        {% for rp in redirect_pools %}<option value="{{ rp.id }}" {{ 'selected' if rp.id == c.redirect_pool_id }}>{{ rp.name }} ({{ rp.count }})</option>{% endfor %}
+                    </select>
+
+                    <label>Media-Pool (Logo-Group)</label>
+                    <select name="logo_group_id">
+                        <option value="0" {{ 'selected' if not c.get('logo_group_id') }}>— aus Template / kein Filter —</option>
+                        {% for g in logo_groups %}
+                        <option value="{{ g.id }}" {{ 'selected' if c.get('logo_group_id') == g.id }}>{{ g.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-help">
+                        Welcher Media-Pool (CID + Cloudinary + S3) versorgt diese Kampagne.
+                        Für parallele Kampagnen: Group A hier, Group B in der anderen
+                        → keine gemischten Assets. Leer = Template-Default.
+                        Pools werden in <a href="/pool">/pool</a> gebaut.
+                    </div>
+
+                    <label>Zeitplan (HH:MM)</label>
+                    <input name="schedule_time" value="{{ c.schedule_time or '' }}" placeholder="14:30">
+                    <div class="form-help">Automatischer Start zu dieser Zeit. Leer = manueller Start.</div>
+
+                    <div class="form-help mt-md">
+                        Versand-Einstellungen in <a href="/config">Config</a> ·
+                        Sender/Betreff via <a href="/macros">Macros</a> ·
+                        Templates im <a href="/templates">HTML-Editor</a>.
+                    </div>
+                </div>
+            </div>
+
+            {# ── Section 1: Meta-Rotation (ehem. verschachtelte <details>) ── #}
+            <div class="section mt-lg">
+                <div class="section-head">
+                    <div class="title">Meta-Rotation (Anti-Cluster)</div>
+                    {% if c.get('rotate_subject_pools') or c.get('rotate_image_modes') or c.get('rotate_link_ref_styles') or c.get('rotate_from_name_pools') %}
+                    <span class="badge badge-running">ON</span>
+                    {% endif %}
+                    <div class="spacer"></div>
+                </div>
+                <div class="section-body">
+                    <div class="form-help mb-sm">
+                        Pro Send unabhängig gewürfelt aus mehreren Pools/Optionen — so kann kein
+                        Provider deine Mails über konstantes Muster (Subject-Set, Image-Format,
+                        Link-Ref-Style) clustern. Alle Felder sind optional; leer = Standard-Verhalten.
+                    </div>
+
+                    <label>Subject-Pools <span class="text-xs muted" style="font-weight:400;text-transform:none;letter-spacing:0">(Pools durch Leerzeile getrennt, jede Zeile ein Betreff)</span></label>
+                    <textarea name="rotate_subject_pools" rows="6" class="mono text-sm"
+                              placeholder="Ihr Angebot wartet auf Sie&#10;Ihre Rückfrage — kurze Info&#10;Bezugnehmend auf unsere Nachricht&#10;&#10;Wichtige Aktualisierung — bitte lesen&#10;Aktueller Stand: Ihre Anfrage&#10;&#10;{Grüße}, kurzes Update&#10;{Grüße}, hier ist die Info">{{ c.get('rotate_subject_pools') or '' }}</textarea>
+                    <div class="form-help">Pool = Block ohne Leerzeile. Pro Mail: erst zufälliger Pool, dann zufällige Zeile daraus. Macros/Spintax werden dann normal aufgelöst. Leer = klassischer Betreff aus /config.</div>
+
+                    <label class="mt-md">From-Name-Pools <span class="text-xs muted" style="font-weight:400;text-transform:none;letter-spacing:0">(gleiches Format wie oben)</span></label>
+                    <textarea name="rotate_from_name_pools" rows="4" class="mono text-sm"
+                              placeholder="Alexander {Nachname}&#10;A. {Nachname}&#10;&#10;{Vorname} {Nachname}&#10;{Vorname} von {Company}">{{ c.get('rotate_from_name_pools') or '' }}</textarea>
+
+                    {# Auto-Refresh — bleibt aufklappbar weil es ein eigener größerer Block ist #}
+                    <details {{ 'open' if c.get('auto_refresh_enabled') }} class="mt-md" style="border:1px solid var(--accent)">
+                        <summary style="font-weight:600;font-size:13px">
+                            &#128260; Auto-Refresh + Health-Adaptive Weights
+                            {% if c.get('auto_refresh_enabled') %}<span class="badge badge-running">ON</span>{% endif %}
+                        </summary>
+                        <div class="details-body">
+                            <div class="form-help mb-sm">
+                                Alle N Sends werden im Hintergrund neue Varianten generiert und
+                                parallel zu Cloudinary + AWS-Buckets hochgeladen + neue CID-Files
+                                geschrieben. Failt eine Quelle (z.B. Cloudinary down), wird deren
+                                Anteil in der Meta-Rotation automatisch runtergedreht. Wenn alle
+                                Cloud-Uploads scheitern → CID-only. Wenn CID auch dead → alte
+                                Variants (letzter Fallback).
+                            </div>
+                            <label class="flex items-center gap-sm mb-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
+                                <input type="checkbox" name="auto_refresh_enabled" value="1"
+                                       {{ 'checked' if c.get('auto_refresh_enabled') }}>
+                                <span>Auto-Refresh aktivieren</span>
+                            </label>
+                            <div class="grid-2">
+                                <div>
+                                    <label>Refresh alle N Sends</label>
+                                    <input name="auto_refresh_every" type="number" min="1000" step="1000"
+                                           value="{{ c.get('auto_refresh_every') or 100000 }}">
+                                    <div class="form-help">Standard: 100.000. Zu niedrig = zu viel AWS/Cloudinary Upload-Traffic.</div>
+                                </div>
+                                <div>
+                                    <label>Neue Varianten pro Refresh</label>
+                                    <input name="auto_refresh_variants" type="number" min="10" step="10"
+                                           value="{{ c.get('auto_refresh_variants') or 1000 }}">
+                                    <div class="form-help">Standard: 1000. Wird gleichmäßig auf CID + Cloudinary + alle S3-Buckets verteilt.</div>
+                                </div>
+                                <div>
+                                    <label>CID-Bevorzugung (Base-Weight)</label>
+                                    <input name="auto_refresh_cid_weight" type="number" step="0.5" min="0.5" max="10"
+                                           value="{{ c.get('auto_refresh_cid_weight') or 3.0 }}">
+                                    <div class="form-help">
+                                        Weight-Multiplikator. 1.0 = CID/CDN gleich wahrscheinlich.
+                                        3.0 = CID 3× so oft wie CDN (Default, weil CID am robustesten).
+                                        5.0+ = CDN nur selten.
+                                    </div>
+                                </div>
+                                <div>
+                                    <label>&nbsp;</label>
+                                    <div class="alert alert-info text-xs">
+                                        <div>
+                                            <strong>Zusammenspiel:</strong><br>
+                                            Meta-Rotation → welche Modi überhaupt gewürfelt werden.<br>
+                                            Auto-Refresh → hält Assets frisch + baut Weights.<br>
+                                            Kaskaden-Fallback → wenn Modus stumm, silent zu CID.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <div class="grid-2 mt-md">
+                        <div>
+                            <label>Image-Mode Rotation</label>
+                            {% set imodes = (c.get('rotate_image_modes') or '').split(',') %}
+                            <div class="flex flex-wrap gap-sm" style="padding:6px 0">
+                                {% for m in ['cid','cdn','url','static_url','text'] %}
+                                <label class="flex items-center gap-xs text-sm" style="font-weight:400;cursor:pointer;text-transform:none;letter-spacing:0">
+                                    <input type="checkbox" name="_rot_image_{{ m }}" value="1"
+                                           {{ 'checked' if m in imodes }}
+                                           onchange="document.getElementById('rot-image-{{ c.id }}').value=Array.from(this.form.querySelectorAll('input[name^=_rot_image_]:checked')).map(x=>x.name.replace('_rot_image_','')).join(',')">
+                                    <span>{{ m }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="rotate_image_modes" id="rot-image-{{ c.id }}" value="{{ c.get('rotate_image_modes') or '' }}">
+                            <div class="form-help">Mehrere gewählt = pro Mail zufällig. Leer = /config-Standard.</div>
+                            <details class="mt-sm" style="background:var(--bg3);padding:6px 10px">
+                                <summary class="text-xs muted" style="font-weight:600">
+                                    &#128200; Live-Diagnose (welcher Mode wird wie oft gewählt?)
+                                </summary>
+                                <div hx-get="/campaigns/{{ c.id }}/image-stats"
+                                     hx-trigger="load, every 3s" hx-swap="innerHTML"
+                                     class="mt-xs text-xs">
+                                    <em class="muted">Lade Stats…</em>
+                                </div>
+                                <button type="button" class="btn btn-secondary btn-xs mt-xs"
+                                        hx-post="/campaigns/{{ c.id }}/reset-image-stats"
+                                        hx-target="previous div" hx-swap="innerHTML">Stats zurücksetzen</button>
+                            </details>
+                        </div>
+                        <div>
+                            <label>Link-Ref-Style Rotation</label>
+                            {% set rstyles = (c.get('rotate_link_ref_styles') or '').split(',') %}
+                            <div class="flex flex-wrap gap-sm" style="padding:6px 0">
+                                {% for s in ['none','base64','random','email','utm'] %}
+                                <label class="flex items-center gap-xs text-sm" style="font-weight:400;cursor:pointer;text-transform:none;letter-spacing:0">
+                                    <input type="checkbox" name="_rot_ref_{{ s }}" value="1"
+                                           {{ 'checked' if s in rstyles }}
+                                           onchange="document.getElementById('rot-ref-{{ c.id }}').value=Array.from(this.form.querySelectorAll('input[name^=_rot_ref_]:checked')).map(x=>x.name.replace('_rot_ref_','')).join(',')">
+                                    <span>{{ s }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="rotate_link_ref_styles" id="rot-ref-{{ c.id }}" value="{{ c.get('rotate_link_ref_styles') or '' }}">
+                            <div class="form-help">
+                                <code>none</code>=kein Ref · <code>base64</code>=Email base64url ·
+                                <code>random</code>=8-char zufällig · <code>email</code>=Cleartext ·
+                                <code>utm</code>=utm_source+utm_id
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Section 2: HTML-Modi + Anti-FP ── #}
+            <div class="section mt-md">
+                <div class="section-head">
+                    <div class="title">HTML-Modi + Anti-FP Feintuning</div>
+                    {% if c.get('live_html_gen_enabled') %}<span class="badge badge-running">Live-Gen ON</span>{% endif %}
+                    {% if c.get('assembly_mode_enabled') %}<span class="badge badge-running">Assembly ON</span>{% endif %}
+                    <div class="spacer"></div>
+                </div>
+                <div class="section-body">
+                    <div class="form-help mb-sm">
+                        <strong>Standard:</strong> Kampagne wählt pro Send ein Template aus dem
+                        vorhandenen HTML-Pool (siehe Config → freshness_html_count).<br>
+                        <strong>Live HTML Gen:</strong> pro Send erzeugt die htmlgen-Engine live
+                        ein frisches Template (mit Macros wie <code>{Satz1}</code>,
+                        <code>{Ende}</code>, <code>{Footer1}</code> die dann normal aufgelöst werden).
+                        Kein Pool nötig, maximale Variation pro Empfänger, ~5ms Overhead pro Send.<br>
+                        <strong>Assembly:</strong> Snippet-Pool-basiert (<a href="/snippets">/snippets</a>)
+                        — Alternative wenn du eigene HTML-Fragmente pro Slot pflegen willst.<br>
+                        Priorität: Live-Gen &gt; Assembly &gt; Pool.
+                    </div>
+
+                    <label class="flex items-center gap-sm mb-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
+                        <input type="checkbox" name="live_html_gen_enabled" value="1"
+                               {{ 'checked' if c.get('live_html_gen_enabled') }}>
+                        <span><strong>Live HTML Gen</strong> — pro Send frisch aus htmlgen (empfohlen)</span>
+                    </label>
+
+                    <div class="grid-2" style="margin:6px 0 6px 26px;padding:10px;background:var(--bg3);border-radius:var(--radius)">
+                        <div>
+                            <label class="text-sm">Primary-Farbe (Brand)</label>
+                            <div class="flex items-center gap-xs">
+                                <input type="color" value="{{ c.get('live_primary_color') or '#005eb8' }}"
+                                       style="width:40px;height:32px;padding:2px;cursor:pointer"
+                                       oninput="this.nextElementSibling.value=this.value">
+                                <input name="live_primary_color" value="{{ c.get('live_primary_color') or '' }}"
+                                       placeholder="leer = zufällig aus Pool"
+                                       class="flex-1 mono text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-sm">Accent-Farbe (Warnungen/Fristen)</label>
+                            <div class="flex items-center gap-xs">
+                                <input type="color" value="{{ c.get('live_accent_color') or '#c0392b' }}"
+                                       style="width:40px;height:32px;padding:2px;cursor:pointer"
+                                       oninput="this.nextElementSibling.value=this.value">
+                                <input name="live_accent_color" value="{{ c.get('live_accent_color') or '' }}"
+                                       placeholder="leer = zufällig aus Pool"
+                                       class="flex-1 mono text-sm">
+                            </div>
+                        </div>
+                        <div class="form-help text-xs" style="grid-column:1/-1;margin:0">
+                            Leer = htmlgen wählt pro Mail eine Farbe aus dem Standard-Pool
+                            (4 Blau-Töne für primary, 3 Rot-Töne für accent — konfiguriert in
+                            <code>htmlgen/config.yaml</code>). Gesetzt = alle Mails dieser
+                            Kampagne nutzen diese Brand-Farbe konsistent.
+                        </div>
+                    </div>
+
+                    <label class="flex items-center gap-sm mt-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
+                        <input type="checkbox" name="htmlgen_extra_randomize" value="1"
+                               {{ 'checked' if c.get('htmlgen_extra_randomize') }}>
+                        <span><strong>Extra-Randomize</strong> — Struktur-Shuffle pro Send
+                        (nur mit Live-Gen aktiv)</span>
+                    </label>
+                    <div class="form-help mb-sm text-xs" style="margin-left:26px">
+                        Pro Send zusätzlich zufällig:<br>
+                        &bull; <strong>15%</strong> Referenz-Block komplett raus<br>
+                        &bull; <strong>15%</strong> Hinweis-Block komplett raus<br>
+                        &bull; <strong>20%</strong> Footer2 leer (nur Footer1 sichtbar)<br>
+                        &bull; <strong>25%</strong> FristText1 &harr; FristText2 vertauscht<br>
+                        Alle Ereignisse unabhängig. Test-Modus — wenn alles gut aussieht, macht's
+                        Sinn die Raten irgendwann fest zu verankern.
+                    </div>
+
+                    <label class="flex items-center gap-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
+                        <input type="checkbox" name="assembly_mode_enabled" value="1"
+                               {{ 'checked' if c.get('assembly_mode_enabled') }}>
+                        <span>Snippet Assembly (nur wenn Live-Gen aus)</span>
+                    </label>
+                    <div class="grid-2 mt-md">
+                        <div>
+                            <label>Anti-FP Pass-Through Rate</label>
+                            <input name="antifp_passthrough_rate" type="number" step="0.01" min="0" max="1"
+                                   value="{{ c.get('antifp_passthrough_rate') or 0.02 }}">
+                            <div class="form-help">Anteil an Mails die KOMPLETT unbearbeitet raus gehen. Default 0.02 = 2%.</div>
+                        </div>
+                        <div>
+                            <label>Anti-FP Light-Touch Rate</label>
+                            <input name="antifp_light_rate" type="number" step="0.01" min="0" max="1"
+                                   value="{{ c.get('antifp_light_rate') or 0.10 }}">
+                            <div class="form-help">Anteil mit nur subtilen Transforms (kein Tag-Swap, keine Class-Inject). Default 0.10 = 10%.</div>
+                        </div>
+                    </div>
+                    <div class="form-help mt-sm">
+                        Rest der Mails bekommt volle Anti-FP-Behandlung. Verteilung natürlich:
+                        manche Mails „sauber", andere „leicht verändert", die meisten
+                        „durchgeschüttelt".
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-md flex items-center gap-sm">
+                <button class="btn btn-primary">Speichern</button>
+                <span class="muted text-xs">Nach dem Speichern wird die Seite neu geladen.</span>
+            </div>
+        </form>
+    </div>
+
+    <div id="c-actions-{{ c.id }}" class="tab-content">
+        <h3 class="mb-sm" style="font-size:14px">Steuerung</h3>
+        <div class="btn-group mb-md">
+            {% if not c.running %}
+            <form method="post" action="/campaigns/{{ c.id }}/start" style="display:inline">
+                <button class="btn btn-success btn-sm">&#9654; Starten</button>
+            </form>
+            {% else %}
+            <form method="post" action="/campaigns/{{ c.id }}/stop" style="display:inline">
+                <button class="btn btn-danger btn-sm">&#10074;&#10074; Pausieren</button>
+            </form>
+            {% endif %}
+            <form method="post" action="/campaigns/{{ c.id }}/reset"
+                  onsubmit="return confirm('Alle Leads zurücksetzen und von vorn beginnen?')" style="display:inline">
+                <button class="btn btn-secondary btn-sm">Von Beginn neu starten</button>
+            </form>
+            <form method="post" action="/campaigns/{{ c.id }}/resend-failed" style="display:inline">
+                <button class="btn btn-secondary btn-sm">Fehlgeschlagene neu senden</button>
+            </form>
+            <form method="post" action="/campaigns/{{ c.id }}/delete"
+                  onsubmit="return confirm('Kampagne löschen?')" style="display:inline">
+                <button class="btn btn-danger btn-sm">Löschen</button>
+            </form>
+        </div>
+        <div class="form-help mb-lg">
+            Starten setzt dort fort, wo pausiert wurde. Fehlgeschlagene Mails werden
+            standardmäßig automatisch erneut versucht (deaktivieren in
+            <a href="/config">Config</a>).
+        </div>
+
+        <h3 class="mb-sm" style="font-size:14px">Pre-Flight-Prüfungen</h3>
+        <div class="btn-group mb-sm">
+            <button class="btn btn-secondary btn-sm"
+                    hx-post="/campaigns/{{ c.id }}/preflight"
+                    hx-target="#preflight-{{ c.id }}"
+                    hx-swap="innerHTML">Vollständiger Pre-Flight</button>
+            <button class="btn btn-secondary btn-sm"
+                    hx-post="/campaigns/{{ c.id }}/test-send"
+                    hx-target="#preflight-{{ c.id }}"
+                    hx-swap="innerHTML">Test senden</button>
+            <button class="btn btn-secondary btn-sm"
+                    hx-post="/campaigns/{{ c.id }}/check-proxy"
+                    hx-target="#preflight-{{ c.id }}"
+                    hx-swap="innerHTML">Proxy prüfen</button>
+            <button class="btn btn-secondary btn-sm"
+                    hx-post="/campaigns/{{ c.id }}/spam-check"
+                    hx-target="#preflight-{{ c.id }}"
+                    hx-swap="innerHTML">Spam-Score</button>
+        </div>
+        <div id="preflight-{{ c.id }}"></div>
+    </div>
+</div>
