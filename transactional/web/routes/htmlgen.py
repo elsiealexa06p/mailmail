@@ -171,7 +171,7 @@ async def preview_template(request: Request,
         f'">Toggle Source</button></div>'
         f'<div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:12px">'
         f'<iframe srcdoc="{escape(html, quote=True)}" style="width:100%;height:600px;border:none"></iframe></div>'
-        f'<pre id="preview-source" style="display:none;background:#f5f5f5;padding:12px;border-radius:4px;'
+        f'<pre id="preview-source" style="display:none;background:var(--bg3);padding:12px;border-radius:4px;'
         f'font-size:12px;overflow-x:auto;max-height:400px">{escaped}</pre>'
     )
 
@@ -380,7 +380,7 @@ async def builder_preview(request: Request,
                     wrapper_html = w["html"]
                     break
             if not wrapper_html:
-                wrapper_html = '<p style="margin:0;font-family:Arial,sans-serif;font-size:14px;color:#333;">{CONTENT}</p>'
+                wrapper_html = '<p style="margin:0;font-family:Arial,sans-serif;font-size:14px;color:var(--fg);">{CONTENT}</p>'
             block_html = wrapper_html.replace("{CONTENT}", "{" + ph_name + "}")
         else:
             variants = block_variants.get(name, [])
@@ -478,7 +478,7 @@ async def builder_save(request: Request):
                     wrapper_html = w["html"]
                     break
             if not wrapper_html:
-                wrapper_html = '<p style="margin:0;font-family:{font};font-size:14px;color:#333;">{CONTENT}</p>'
+                wrapper_html = '<p style="margin:0;font-family:{font};font-size:14px;color:var(--fg);">{CONTENT}</p>'
             block_html = wrapper_html.replace("{CONTENT}", "{" + ph_name + "}")
         else:
             placeholder = "{BLOCK_" + name.upper() + "}"

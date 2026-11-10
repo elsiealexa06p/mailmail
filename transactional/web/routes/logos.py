@@ -378,7 +378,7 @@ async def cdn_progress(request: Request):
     if p["ok"] > 0:
         html += f'<div class="alert alert-success">{p["ok"]} uploaded to Cloudinary. <a href="/logos" style="color:var(--accent)">Reload</a></div>'
     if p["log"]:
-        html += '<div style="font-family:monospace;font-size:11px;max-height:200px;overflow-y:auto;background:#fff5f5;padding:8px;border-radius:4px;margin-top:8px">'
+        html += '<div style="font-family:monospace;font-size:11px;max-height:200px;overflow-y:auto;background:var(--red-light);padding:8px;border-radius:4px;margin-top:8px">'
         for line in p["log"]:
             html += f'<div style="color:var(--red)">{escape(line)}</div>'
         html += '</div>'

@@ -354,7 +354,7 @@ async def progress(request: Request):
         rows = "".join(
             f'<div style="color:var(--fg2)">{escape(l)}</div>' for l in p["log"][-15:])
         log_html = (f'<div style="font-family:monospace;font-size:11px;max-height:180px;'
-                    f'overflow-y:auto;background:#f8f9fa;padding:8px;border-radius:4px;'
+                    f'overflow-y:auto;background:var(--bg3);padding:8px;border-radius:4px;'
                     f'margin-top:6px">{rows}</div>')
 
     if p["running"]:

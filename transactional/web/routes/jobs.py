@@ -16,7 +16,7 @@ def _job_row_html(j) -> str:
     status_color = {
         "running": "var(--accent)",
         "done": "var(--green)",
-        "cancelled": "var(--orange, #f5a623)",
+        "cancelled": "var(--yellow)",
         "error": "var(--red)",
     }.get(j.status, "var(--fg2)")
     kind_badge = escape(j.kind.replace("_", " "))
@@ -63,7 +63,7 @@ def _job_row_html(j) -> str:
 
     return (
         f'<div class="job-row" style="border-left:2px solid {status_color};'
-        f'padding:4px 6px 4px 8px;margin-bottom:4px;background:var(--bg1);'
+        f'padding:4px 6px 4px 8px;margin-bottom:4px;background:var(--bg);'
         f'border-radius:2px">'
         f'<div style="display:flex;gap:6px;align-items:center">'
         f'<span style="font-size:11px;font-weight:600;flex:1;overflow:hidden;'

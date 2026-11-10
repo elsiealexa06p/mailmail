@@ -534,7 +534,7 @@ async def generate_goto_test(request: Request, target_url: str = Form(""),
         out.append('<details style="margin-top:8px"><summary style="cursor:pointer">'
                     'HTML-Snippet (erste 400 chars)</summary>'
                     f'<pre style="white-space:pre-wrap;font-size:11px;'
-                    f'background:#f7f7f7;padding:8px;max-height:300px;overflow:auto">'
+                    f'background:var(--bg3);padding:8px;max-height:300px;overflow:auto">'
                     f'{escape(snippet)}</pre></details>')
     return HTMLResponse("".join(out))
 
@@ -1080,7 +1080,7 @@ async def s3_gen_status(request: Request):
     if p.get("last_error"):
         last_err_html = (
             f'<div style="margin-top:6px;padding:6px;border:1px solid var(--red);'
-            f'border-radius:var(--radius);background:#ffeded;color:#a00;'
+            f'border-radius:var(--radius);background:var(--red-light);color:var(--red);'
             f'font-family:monospace;font-size:11px;white-space:pre-wrap;max-height:120px;overflow:auto">'
             f'<strong>Last error:</strong> {escape(p["last_error"])}</div>'
         )

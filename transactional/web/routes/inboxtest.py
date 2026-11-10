@@ -379,7 +379,7 @@ async def test_progress(request: Request):
 
     html = f'<div class="progress" style="margin-bottom:8px"><div class="progress-bar" style="width:{pct}%">{done}/{total} ({phase})</div></div>'
     if p["log"]:
-        html += '<div style="font-family:monospace;font-size:11px;max-height:200px;overflow-y:auto;background:#f8f9fa;padding:8px;border-radius:4px">'
+        html += '<div style="font-family:monospace;font-size:11px;max-height:200px;overflow-y:auto;background:var(--bg3);padding:8px;border-radius:4px">'
         for line in p["log"][-20:]:
             color = "var(--green)" if "INBOX" in line else "var(--red)" if ("SPAM" in line or "FAILED" in line) else "var(--fg2)"
             html += f'<div style="color:{color}">{escape(line)}</div>'
