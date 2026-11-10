@@ -101,17 +101,12 @@ _static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(_static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
-# Reuse bulk mailer CSS. Wenn die Ziel-style.css jemand anderem gehört
-# (typisch nach einem git pull als root) → nicht crashen. Die alte CSS
-# reicht dann für diesen Boot.
-_bulk_css = os.path.join(_project_root, "bulk", "web", "static", "style.css")
-if os.path.isfile(_bulk_css):
-    import shutil
-    try:
-        shutil.copy2(_bulk_css, os.path.join(_static_dir, "style.css"))
-    except (PermissionError, OSError) as _css_err:
-        logging.warning("could not sync bulk style.css (ownership issue?): %s",
-                         _css_err)
+# Previously this block copied bulk/web/static/style.css over this module's
+# own style.css on every boot — handy while the two panels shared a theme,
+# but it also silently overwrote any transactional-only design work. Since
+# Transactional now ships its own Postwerk style.css, we no longer sync.
+# If you want the two panels to stay visually aligned again, drop the
+# intended source next to this file manually, don't resurrect the copy.
 
 tpl_dir = os.path.join(os.path.dirname(__file__), "templates")
 jinja_templates = Jinja2Templates(directory=tpl_dir)
