@@ -1,0 +1,239 @@
+{#
+  _components.html — reusable Jinja macros for the Transactional panel.
+
+  Usage in a template:
+      {% from "_components.html" import card, section_head, btn, pill, stat, empty, drawer_button, topbar %}
+
+  All macros stay backward-compatible with the old CSS: they just render the same
+  classes, so you can keep hand-written card/btn HTML too.
+#}
+
+
+{#
+  card(title=None, count=None, actions=None, body) — simple card wrapper.
+  Example:
+      {% call card(title="SMTP Presets", count=smtps|length) %}
+          <table>…</table>
+      {% endcall %}
+#}
+{% macro card(title=None, count=None) %}
+<div class="card">
+    {% if title %}
+    <div class="card-header">
+        <h3>
+            {{ title }}
+            {% if count is not none %}<span class="count">{{ count }}</span>{% endif %}
+        </h3>
+        {% if kwargs.actions %}<div class="btn-group">{{ kwargs.actions|safe }}</div>{% endif %}
+    </div>
+    {% endif %}
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+
+{#
+  section(title, sub=None, actions=None) — like card but with hairline edges,
+  used for the big table-style panels (Mailings, SMTP).
+  Example:
+      {% call section("Active Campaigns", sub="3 running", actions='<a class="btn btn-primary btn-sm" href="/campaigns/new">+ New</a>') %}
+          <table>…</table>
+      {% endcall %}
+#}
+{% macro section(title, sub=None, actions=None) %}
+<div class="section">
+    <div class="section-head">
+        <div class="title">{{ title }}</div>
+        {% if sub %}<div class="sub">{{ sub }}</div>{% endif %}
+        <div class="spacer"></div>
+        {% if actions %}{{ actions|safe }}{% endif %}
+    </div>
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+
+{#
+  btn(label, href=None, variant="secondary", size="sm", icon=None, **kwargs)
+  variant: primary | secondary | success | danger | ghost
+  size:    sm (default) | xs | md
+  Extra kwargs pass through as attributes (e.g. hx_post, onclick, title).
+  Example:
+      {{ btn("Save", variant="primary", type="submit") }}
+      {{ btn("Edit", href="/edit/42", icon="✎") }}
+#}
+{% macro btn(label, href=None, variant="secondary", size="sm", icon=None) %}
+    {% set classes = ["btn", "btn-" ~ variant] %}
+    {% if size and size != "md" %}{% set _ = classes.append("btn-" ~ size) %}{% endif %}
+    {% set attrs = [] %}
+    {% for k, v in kwargs.items() %}
+        {% set _ = attrs.append(k.replace('_','-') ~ '="' ~ v ~ '"') %}
+    {% endfor %}
+    {% if href %}
+        <a class="{{ classes|join(' ') }}" href="{{ href }}"{% for a in attrs %} {{ a|safe }}{% endfor %}>
+            {% if icon %}<span>{{ icon }}</span>{% endif %}{{ label }}
+        </a>
+    {% else %}
+        <button class="{{ classes|join(' ') }}"{% for a in attrs %} {{ a|safe }}{% endfor %}>
+            {% if icon %}<span>{{ icon }}</span>{% endif %}{{ label }}
+        </button>
+    {% endif %}
+{% endmacro %}
+
+
+{#
+  pill(label, variant=None) — a status pill with colored background.
+  variant: good | warn | bad | info | None (neutral grey)
+  Example:
+      {{ pill("Running", "good") }}
+      {{ pill("Draft") }}
+#}
+{% macro pill(label, variant=None) %}
+    {% if variant == "good" %}
+        <span class="badge badge-running"><span class="pill-dot"></span>{{ label }}</span>
+    {% elif variant == "warn" %}
+        <span class="badge badge-paused"><span class="pill-dot"></span>{{ label }}</span>
+    {% elif variant == "bad" %}
+        <span class="badge badge-failed"><span class="pill-dot"></span>{{ label }}</span>
+    {% elif variant == "info" %}
+        <span class="badge badge-info"><span class="pill-dot"></span>{{ label }}</span>
+    {% else %}
+        <span class="badge badge-draft">{{ label }}</span>
+    {% endif %}
+{% endmacro %}
+
+
+{#
+  status_pill(status) — picks the right variant from a status string.
+  Known: RUNNING, PAUSED, DRAFT, FINISHED, DONE, FAILED, ERROR, PENDING, QUEUED.
+#}
+{% macro status_pill(status) %}
+    {% set s = (status or "")|upper %}
+    {% if s in ("RUNNING","SENDING","OK","ACTIVE","DONE") %}
+        {{ pill(status, "good") }}
+    {% elif s in ("PAUSED","PENDING","QUEUED","WAITING","THROTTLED") %}
+        {{ pill(status, "warn") }}
+    {% elif s in ("FAILED","ERROR","ABORTED","STOPPED") %}
+        {{ pill(status, "bad") }}
+    {% elif s in ("FINISHED","COMPLETED","DELIVERED") %}
+        {{ pill(status, "info") }}
+    {% else %}
+        {{ pill(status) }}
+    {% endif %}
+{% endmacro %}
+
+
+{#
+  stat(label, value, trend=None, trend_direction=None)
+  trend_direction: up | down | flat
+#}
+{% macro stat(label, value, trend=None, trend_direction=None) %}
+<div class="stat-tile">
+    <div class="label">{{ label }}</div>
+    <div class="value">{{ value }}</div>
+    {% if trend %}<div class="trend {{ trend_direction or '' }}">{{ trend }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+
+{#
+  stat_rail — wrap several stat() calls in an edge-to-edge row.
+  Usage:
+      {% call stat_rail() %}
+          {{ stat("Sent", "142 391", "+18%", "up") }}
+          {{ stat("Bounce", "2.1%", "-0.3pp", "up") }}
+      {% endcall %}
+#}
+{% macro stat_rail() %}
+<div class="stat-rail">{{ caller() }}</div>
+{% endmacro %}
+
+
+{#
+  empty(icon, title, action=None) — nice empty state for lists.
+#}
+{% macro empty(icon, title, action=None) %}
+<div class="empty-state">
+    <div class="icon">{{ icon|safe }}</div>
+    <p>{{ title }}</p>
+    {% if action %}<div style="margin-top:12px">{{ action|safe }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+
+{#
+  topbar(title, subtitle=None) — standard top-of-page bar.
+  Place extra buttons/search in the right-hand slot via caller.
+  Usage:
+      {% call topbar("SMTP Presets", subtitle="11 Server · 2 im Warmup") %}
+          <a class="btn btn-primary btn-sm" href="/smtp/new">+ Neuer SMTP</a>
+      {% endcall %}
+#}
+{% macro topbar(title, subtitle=None) %}
+<div class="page-header">
+    <h1>
+        {{ title }}
+        {% if subtitle %}<span class="subtitle">{{ subtitle }}</span>{% endif %}
+    </h1>
+    <div class="btn-group">{{ caller() }}</div>
+</div>
+{% endmacro %}
+
+
+{#
+  drawer_button(target, label, hx_get=None, variant="secondary", size="xs")
+  — a button that opens the drawer and loads content via HTMX.
+#}
+{% macro drawer_button(target, label, hx_get, variant="secondary", size="xs") %}
+<button class="btn btn-{{ variant }} btn-{{ size }}"
+        hx-get="{{ hx_get }}"
+        hx-target="#{{ target }} .drawer-body"
+        hx-swap="innerHTML"
+        onclick="openDrawer('{{ target }}')">
+    {{ label }}
+</button>
+{% endmacro %}
+
+
+{#
+  drawer(id, title_id="drawer-title") — a right-side drawer container.
+  Content is loaded into .drawer-body via HTMX; the drawer stays hidden
+  until openDrawer() toggles data-open="1".
+#}
+{% macro drawer(id, title="Details") %}
+<div class="drawer-backdrop" id="{{ id }}-backdrop" onclick="closeDrawer('{{ id }}')"></div>
+<aside class="drawer" id="{{ id }}" role="dialog" aria-modal="true" aria-labelledby="{{ id }}-title">
+    <div class="drawer-head">
+        <h2 id="{{ id }}-title">{{ title }}</h2>
+        <button class="drawer-close" type="button" onclick="closeDrawer('{{ id }}')" aria-label="Close">&times;</button>
+    </div>
+    <div class="drawer-body">
+        <div class="muted text-sm">Lädt …</div>
+    </div>
+</aside>
+<script>
+(function(){
+    if (window._drawerHelpersAttached) return;
+    window._drawerHelpersAttached = true;
+    window.openDrawer = function(id) {
+        var el = document.getElementById(id);
+        var bd = document.getElementById(id + '-backdrop');
+        if (el) el.setAttribute('data-open', '1');
+        if (bd) bd.setAttribute('data-open', '1');
+    };
+    window.closeDrawer = function(id) {
+        var el = document.getElementById(id);
+        var bd = document.getElementById(id + '-backdrop');
+        if (el) el.setAttribute('data-open', '0');
+        if (bd) bd.setAttribute('data-open', '0');
+    };
+    document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.drawer[data-open="1"]').forEach(function(d){
+                window.closeDrawer(d.id);
+            });
+        }
+    });
+})();
+</script>
+{% endmacro %}
