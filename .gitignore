@@ -15,3 +15,5 @@ spintaxes/*
 logos/*
 !logos/.gitkeep
 image_pool.json
+*.db-shm
+*.db-wal
