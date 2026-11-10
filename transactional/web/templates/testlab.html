@@ -1,32 +1,35 @@
 {% extends "base.html" %}
 {% block title %} — Test Lab{% endblock %}
 {% block content %}
-<div class="page-header"><h1>Test Lab</h1></div>
+<div class="page-header">
+    <h1>Test Lab</h1>
+    <span class="subtitle">Test-Mails versenden &amp; Header-Vorschau</span>
+</div>
 
 <div class="card">
     <form hx-post="/testlab/send" hx-target="#testlab-result" hx-swap="innerHTML">
         <div class="grid-2">
             <div>
-                <label>Send To</label>
+                <label>Empfänger</label>
                 <input name="to_email" placeholder="test@inbox.com" required>
 
-                <label>SMTP List</label>
+                <label>SMTP-Liste</label>
                 <select name="smtp_list_id" required>
-                    <option value="">— Select —</option>
+                    <option value="">— Auswählen —</option>
                     {% for sl in smtp_lists %}
                     <option value="{{ sl.id }}">{{ sl.name }} ({{ sl.count }})</option>
                     {% endfor %}
                 </select>
 
-                <label>HTML Template</label>
+                <label>HTML-Template</label>
                 <select name="template_id">
-                    <option value="0">Default test content</option>
+                    <option value="0">Standard-Testinhalt</option>
                     {% for t in templates %}
                     <option value="{{ t.id }}">{{ t.name }}</option>
                     {% endfor %}
                 </select>
 
-                <label>MIME Profile</label>
+                <label>MIME-Profil</label>
                 <select name="mime_profile" id="lab-profile">
                     {% for name, desc in profiles %}
                     <option value="{{ name }}">{{ desc }}</option>
@@ -34,67 +37,74 @@
                 </select>
             </div>
             <div>
-                <label>From Name (optional override)</label>
-                <input name="from_name" placeholder="Uses Config default" value="{{ cfg.from_name or '' }}">
+                <label>Absender-Name (optionaler Override)</label>
+                <input name="from_name" placeholder="Nutzt Config-Standard" value="{{ cfg.from_name or '' }}">
 
-                <label>From Email (optional override)</label>
-                <input name="from_email_override" placeholder="Uses Config or SMTP account">
+                <label>Absender-E-Mail (optionaler Override)</label>
+                <input name="from_email_override" placeholder="Nutzt Config oder SMTP-Account">
 
-                <label>Subject (optional override)</label>
-                <input name="subject" placeholder="Uses Config default" value="{{ cfg.subject or '' }}">
+                <label>Betreff (optionaler Override)</label>
+                <input name="subject" placeholder="Nutzt Config-Standard" value="{{ cfg.subject or '' }}">
 
-                <div class="form-help" style="margin-top:16px">
-                    Sends via proxy if configured. Uses macros, spintax, and
-                    the selected MIME profile for header transformation.
+                <div class="form-help mt-lg">
+                    Sendet via Proxy wenn konfiguriert. Nutzt Makros, Spintax und
+                    das gewählte MIME-Profil für die Header-Transformation.
                 </div>
             </div>
         </div>
-        <div style="margin-top:14px" class="btn-group">
-            <button class="btn btn-primary">Send Test Mail</button>
+        <div class="btn-group mt-md">
+            <button class="btn btn-primary">Test-Mail senden</button>
             <button type="button" class="btn btn-secondary"
                     hx-post="/testlab/preview-headers"
                     hx-target="#testlab-result"
                     hx-swap="innerHTML"
-                    hx-include="[name=mime_profile],[name=from_email_override]">Preview Headers Only</button>
+                    hx-include="[name=mime_profile],[name=from_email_override]">Nur Header-Vorschau</button>
         </div>
     </form>
 </div>
 
-<div id="testlab-result" style="margin-top:16px"></div>
+<div id="testlab-result" class="mt-md"></div>
 
-<div class="card" style="margin-top:16px">
-    <h3>Profile Quick Reference</h3>
-    <table style="font-size:12px">
-        <thead><tr><th>Profile</th><th>Message-ID</th><th>Boundary</th><th>Key Headers</th></tr></thead>
+<div class="card mt-md">
+    <h3>Profil-Kurzreferenz</h3>
+    <table class="text-sm">
+        <thead>
+            <tr>
+                <th>Profil</th>
+                <th>Message-ID</th>
+                <th>Boundary</th>
+                <th>Wichtige Header</th>
+            </tr>
+        </thead>
         <tbody>
             <tr>
                 <td><strong>Default</strong></td>
-                <td style="font-family:monospace">hex.hex@domain</td>
-                <td style="font-family:monospace">----=_Part_ts_hex</td>
+                <td class="mono">hex.hex@domain</td>
+                <td class="mono">----=_Part_ts_hex</td>
                 <td>Auto-Submitted</td>
             </tr>
             <tr>
                 <td><strong>Outlook 16</strong></td>
-                <td style="font-family:monospace">HEX40@domain</td>
-                <td style="font-family:monospace">NextPart_000_seq_FILETIME</td>
+                <td class="mono">HEX40@domain</td>
+                <td class="mono">NextPart_000_seq_FILETIME</td>
                 <td>X-Mailer, Thread-Index, Content-Language</td>
             </tr>
             <tr>
                 <td><strong>Apple Mac</strong></td>
-                <td style="font-family:monospace">UUID-UPPER@domain</td>
-                <td style="font-family:monospace">Apple-Mail-UUID</td>
+                <td class="mono">UUID-UPPER@domain</td>
+                <td class="mono">Apple-Mail-UUID</td>
                 <td>Mime-Version: 1.0 (1.0), CTE: 7bit top</td>
             </tr>
             <tr>
                 <td><strong>iPhone</strong></td>
-                <td style="font-family:monospace">UUID-UPPER@domain</td>
-                <td style="font-family:monospace">Apple-Mail-UUID</td>
+                <td class="mono">UUID-UPPER@domain</td>
+                <td class="mono">Apple-Mail-UUID</td>
                 <td>X-Mailer: iPhone Mail (build)</td>
             </tr>
             <tr>
                 <td><strong>Thunderbird</strong></td>
-                <td style="font-family:monospace">uuid-lower@domain</td>
-                <td style="font-family:monospace">(unchanged)</td>
+                <td class="mono">uuid-lower@domain</td>
+                <td class="mono">(unverändert)</td>
                 <td>User-Agent: Mozilla Thunderbird</td>
             </tr>
         </tbody>

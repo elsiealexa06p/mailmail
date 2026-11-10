@@ -1,148 +1,148 @@
 {% extends "base.html" %}
-{% block title %} — HTML Generator{% endblock %}
+{% block title %} — HTML-Generator{% endblock %}
 {% block content %}
-<div class="page-header"><h1>HTML Content Engine</h1></div>
+<div class="page-header"><h1>HTML-Content-Engine</h1></div>
 
 <div class="card">
-    <div class="card-header"><h3>Generate Templates</h3></div>
-    <div style="padding:16px">
-        <form>
-            <div class="grid-2">
-                <div>
-                    <label>Number of templates</label>
-                    <input name="count" type="number" value="100" min="1" max="50000">
-                    <div class="form-help">Cap is 50000. ~50ms per template, so 10000 takes ~8min.</div>
+    <div class="card-header"><h3>Vorlagen generieren</h3></div>
+    <form>
+        <div class="grid-2">
+            <div>
+                <label>Anzahl Vorlagen</label>
+                <input name="count" type="number" value="100" min="1" max="50000">
+                <div class="form-help">Maximum 50000. ~50ms pro Vorlage, 10000 Stück dauern also ca. 8 Minuten.</div>
 
-                    <label>Layouts (Ctrl+Click to select multiple)</label>
-                    <select name="layouts" multiple size="{{ [layout_names|length + 1, 8]|min }}" style="min-height:80px">
+                <label class="mt-md">Layouts (Strg+Klick für Mehrfachauswahl)</label>
+                <select name="layouts" multiple size="{{ [layout_names|length + 1, 8]|min }}" style="min-height:80px">
+                    {% for l in layout_names %}
+                    <option value="{{ l }}" selected>{{ l }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-help">Alle ausgewählt = zufällig aus diesen. Nicht gewünschte Layouts abwählen.</div>
+
+                <details class="mt-sm">
+                    <summary class="muted text-sm" style="cursor:pointer">Layouts verwalten (dauerhaft löschen)</summary>
+                    <div class="details-body mt-xs">
                         {% for l in layout_names %}
-                        <option value="{{ l }}" selected>{{ l }}</option>
-                        {% endfor %}
-                    </select>
-                    <div class="form-help">All selected = random from those. Deselect layouts you don't want.</div>
-
-                    <details style="margin-top:6px">
-                        <summary style="cursor:pointer;font-size:12px;color:var(--fg2)">Manage layouts (permanent delete)</summary>
-                        <div style="margin-top:6px;padding:8px;border:1px solid var(--border-light);border-radius:var(--radius);background:var(--bg)">
-                            {% for l in layout_names %}
-                            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
-                                <span style="font-family:monospace">{{ l }}.html</span>
-                                <button type="button" class="btn btn-danger btn-xs"
-                                        hx-post="/htmlgen/layout/{{ l }}/delete"
-                                        hx-confirm="Delete layout {{ l }}.html permanently?"
-                                        hx-swap="none"
-                                        hx-on::after-request="if(event.detail.successful){this.closest('div').remove()}">Delete</button>
-                            </div>
-                            {% endfor %}
-                            <div class="form-help" style="margin-top:6px">
-                                Last remaining layout cannot be deleted. Files live in <code>htmlgen/layouts/</code>.
-                            </div>
+                        <div class="flex justify-between items-center text-sm" style="padding:4px 0">
+                            <span class="mono">{{ l }}.html</span>
+                            <button type="button" class="btn btn-danger btn-xs"
+                                    hx-post="/htmlgen/layout/{{ l }}/delete"
+                                    hx-confirm="Layout {{ l }}.html dauerhaft löschen?"
+                                    hx-swap="none"
+                                    hx-on::after-request="if(event.detail.successful){this.closest('div').remove()}">Löschen</button>
                         </div>
-                    </details>
+                        {% endfor %}
+                        <div class="form-help mt-xs">
+                            Das letzte verbleibende Layout kann nicht gelöscht werden. Dateien liegen in <code>htmlgen/layouts/</code>.
+                        </div>
+                    </div>
+                </details>
+            </div>
+            <div>
+                <label>Primärfarbe (leer lassen = Pool)</label>
+                <div class="flex gap-sm items-center">
+                    <input name="primary_color" type="color" value="#005eb8" style="width:50px;height:34px;padding:2px;cursor:pointer">
+                    <input name="primary_color_hex" value="" placeholder="#005eb8" class="flex-1"
+                           oninput="this.form.primary_color.value=this.value">
                 </div>
-                <div>
-                    <label>Primary Color (leave empty = pool)</label>
-                    <div style="display:flex;gap:8px;align-items:center">
-                        <input name="primary_color" type="color" value="#005eb8" style="width:50px;height:34px;padding:2px;cursor:pointer">
-                        <input name="primary_color_hex" value="" placeholder="#005eb8" style="flex:1"
-                               oninput="this.form.primary_color.value=this.value">
-                    </div>
-                    <div class="form-help">Leave hex empty to use color pool from config.</div>
+                <div class="form-help">Hex leer lassen, um den Farbpool aus der Config zu verwenden.</div>
 
-                    <label>Accent Color (warnings/deadlines)</label>
-                    <div style="display:flex;gap:8px;align-items:center">
-                        <input name="accent_color" type="color" value="#c0392b" style="width:50px;height:34px;padding:2px;cursor:pointer">
-                        <input name="accent_color_hex" value="" placeholder="#c0392b" style="flex:1"
-                               oninput="this.form.accent_color.value=this.value">
-                    </div>
+                <label class="mt-md">Akzentfarbe (Warnungen/Fristen)</label>
+                <div class="flex gap-sm items-center">
+                    <input name="accent_color" type="color" value="#c0392b" style="width:50px;height:34px;padding:2px;cursor:pointer">
+                    <input name="accent_color_hex" value="" placeholder="#c0392b" class="flex-1"
+                           oninput="this.form.accent_color.value=this.value">
                 </div>
             </div>
+        </div>
 
-            <div class="btn-group" style="margin-top:16px;flex-wrap:wrap">
-                <button type="button" class="btn btn-primary btn-sm"
-                        hx-post="/htmlgen/generate"
-                        hx-target="#gen-result"
-                        hx-swap="innerHTML"
-                        hx-include="closest form">Generate</button>
-                <button type="button" class="btn btn-secondary btn-sm"
-                        hx-post="/htmlgen/preview"
-                        hx-target="#preview-result"
-                        hx-swap="innerHTML"
-                        hx-include="closest form">Preview One</button>
-            </div>
-        </form>
-        <div id="gen-result" style="margin-top:12px"></div>
-    </div>
+        <div class="btn-group mt-md">
+            <button type="button" class="btn btn-primary btn-sm"
+                    hx-post="/htmlgen/generate"
+                    hx-target="#gen-result"
+                    hx-swap="innerHTML"
+                    hx-include="closest form">Generieren</button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-post="/htmlgen/preview"
+                    hx-target="#preview-result"
+                    hx-swap="innerHTML"
+                    hx-include="closest form">Vorschau</button>
+        </div>
+    </form>
+    <div id="gen-result" class="mt-md"></div>
 </div>
 
-<div id="preview-result" style="margin-top:16px"></div>
+<div id="preview-result" class="mt-md"></div>
 
-<details>
-    <summary>Available Blocks <span style="margin-left:8px;color:var(--fg2);font-size:13px">({{ blocks_info|sum(attribute='count') }} variants total)</span></summary>
-    <div class="details-body" style="padding-top:16px">
+<details class="mt-md">
+    <summary>Verfügbare Blöcke <span class="muted text-md">({{ blocks_info|sum(attribute='count') }} Varianten gesamt)</span></summary>
+    <div class="details-body">
         <table>
-            <thead><tr><th>Block</th><th>Variants</th><th>Enabled</th></tr></thead>
+            <thead><tr><th>Block</th><th>Varianten</th><th>Aktiviert</th></tr></thead>
             <tbody>
             {% for b in blocks_info %}
             <tr>
-                <td style="font-weight:500">{{ b.name }}</td>
+                <td>{{ b.name }}</td>
                 <td>{{ b.count }}</td>
-                <td>{% if b.enabled %}<span style="color:var(--green)">Yes</span>{% else %}<span style="color:var(--red)">No</span>{% endif %}</td>
+                <td>{% if b.enabled %}<span class="badge badge-finished">Ja</span>{% else %}<span class="badge badge-failed">Nein</span>{% endif %}</td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
-        <div class="form-help" style="margin-top:8px">
-            Edit blocks in <code>htmlgen/blocks/</code>. Edit config in <code>htmlgen/config.yaml</code>.
+        <div class="form-help mt-sm">
+            Blöcke bearbeiten in <code>htmlgen/blocks/</code>. Config bearbeiten in <code>htmlgen/config.yaml</code>.
         </div>
     </div>
 </details>
 
 {% if gen_count %}
-<details open>
-    <summary>Generated Templates <span style="margin-left:8px;color:var(--fg2);font-size:13px">({{ gen_count }})</span></summary>
-    <div class="details-body" style="padding-top:16px">
-        <div class="btn-group" style="margin-bottom:16px;flex-wrap:wrap">
-            <form method="post" action="/htmlgen/export" style="display:inline">
-                <button class="btn btn-primary btn-sm">Export ZIP</button>
+<details open class="mt-md">
+    <summary>Generierte Vorlagen <span class="muted text-md">({{ gen_count }})</span></summary>
+    <div class="details-body">
+        <div class="btn-group mb-md">
+            <form method="post" action="/htmlgen/export">
+                <button class="btn btn-primary btn-sm">ZIP exportieren</button>
             </form>
-            <form method="post" action="/htmlgen/clear" onsubmit="return confirm('Delete all generated templates?')" style="display:inline">
-                <button class="btn btn-danger btn-sm">Clear All</button>
+            <form method="post" action="/htmlgen/clear" onsubmit="return confirm('Alle generierten Vorlagen löschen?')">
+                <button class="btn btn-danger btn-sm">Alle löschen</button>
             </form>
         </div>
 
-        <div style="background:#f8f9fa;padding:14px;border-radius:4px;margin-bottom:16px">
-            <div class="grid-2" style="margin-bottom:8px">
-                <div>
-                    <label style="margin:0 0 4px">New Template</label>
-                    <div style="display:flex;gap:8px;align-items:center">
-                        <input id="load-name" name="load_name" value="HtmlGen" style="flex:1">
-                        <button class="btn btn-success btn-sm"
-                                hx-post="/htmlgen/load-to-mailer"
-                                hx-target="#load-result"
-                                hx-swap="innerHTML"
-                                hx-include="#load-name">Create & Load</button>
+        <div class="section mb-md">
+            <div class="section-body">
+                <div class="grid-2">
+                    <div>
+                        <label>Neue Vorlage</label>
+                        <div class="flex gap-sm items-center">
+                            <input id="load-name" name="load_name" value="HtmlGen" class="flex-1">
+                            <button class="btn btn-success btn-sm"
+                                    hx-post="/htmlgen/load-to-mailer"
+                                    hx-target="#load-result"
+                                    hx-swap="innerHTML"
+                                    hx-include="#load-name">Erstellen & Laden</button>
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <label style="margin:0 0 4px">Or add to existing</label>
-                    <div style="display:flex;gap:8px;align-items:center">
-                        <select id="existing-tpl" name="existing_template_id" style="flex:1">
-                            <option value="0">— Select —</option>
-                            {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
-                        </select>
-                        <button class="btn btn-success btn-sm"
-                                hx-post="/htmlgen/load-to-mailer"
-                                hx-target="#load-result"
-                                hx-swap="innerHTML"
-                                hx-include="#existing-tpl, #load-name">Add to Template</button>
+                    <div>
+                        <label>Oder zu bestehender Vorlage hinzufügen</label>
+                        <div class="flex gap-sm items-center">
+                            <select id="existing-tpl" name="existing_template_id" class="flex-1">
+                                <option value="0">— Auswählen —</option>
+                                {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+                            </select>
+                            <button class="btn btn-success btn-sm"
+                                    hx-post="/htmlgen/load-to-mailer"
+                                    hx-target="#load-result"
+                                    hx-swap="innerHTML"
+                                    hx-include="#existing-tpl, #load-name">Zur Vorlage hinzufügen</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div id="load-result" style="margin-bottom:12px"></div>
+        <div id="load-result" class="mb-md"></div>
 
-        <p style="color:var(--fg2);font-size:13px;margin-bottom:12px">{{ gen_count }} templates generated. Use Export or Load to use them.</p>
+        <p class="muted text-md mb-md">{{ gen_count }} Vorlagen generiert. Zum Verwenden exportieren oder laden.</p>
     </div>
 </details>
 {% endif %}

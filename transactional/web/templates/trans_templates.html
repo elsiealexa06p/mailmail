@@ -1,42 +1,42 @@
 {% extends "base.html" %}
-{% block title %} — HTML Editor{% endblock %}
+{% block title %} — HTML-Editor{% endblock %}
 {% block content %}
-<div class="page-header"><h1>HTML Editor</h1></div>
+<div class="page-header"><h1>HTML-Editor</h1></div>
 
 <div class="card">
-    <h3>HTML Rotation</h3>
-    <form method="post" action="/config/save" style="display:flex;gap:12px;align-items:flex-end">
+    <h3>HTML-Rotation</h3>
+    <form method="post" action="/config/save" class="flex gap-md items-end">
         <div>
-            <label>Rotate Every N Sends</label>
+            <label>Alle N Sends rotieren</label>
             <input name="html_rotate_every" type="number" value="{{ db.get_config().get('html_rotate_every', 0) }}" min="0" style="width:120px">
         </div>
-        <button class="btn btn-primary btn-sm">Save</button>
+        <button class="btn btn-primary btn-sm">Speichern</button>
     </form>
-    <div class="form-help">0 = random pick. N = use HTML #1 for N sends, then #2, etc.</div>
+    <div class="form-help">0 = zufällige Auswahl. N = HTML #1 für N Sends verwenden, dann #2, usw.</div>
 </div>
 
 <div class="card">
     <div class="card-header">
-        <h3>Templates <span class="count">{{ templates|length }}</span></h3>
+        <h3>Vorlagen <span class="count">{{ templates|length }}</span></h3>
     </div>
 
     {% if templates %}
-    <!-- Template list -->
-    <table style="margin-bottom:16px">
-        <thead><tr><th>Name</th><th>Files</th><th>Logo Group</th><th></th><th></th></tr></thead>
+    <!-- Vorlagenliste -->
+    <table class="mb-md">
+        <thead><tr><th>Name</th><th>Dateien</th><th>Logo-Gruppe</th><th></th><th></th></tr></thead>
         <tbody>
         {% for t in templates %}
         {% set fcount = db.get_template_file_count(t.id) %}
         <tr>
-            <td style="font-weight:500">{{ t.name }}</td>
-            <td>{{ fcount }} files{{ ', +inline' if t.html_content else '' }}</td>
-            <td style="font-size:12px;color:var(--fg2)">{% for lg in logo_groups %}{% if lg.id == t.logo_group_id %}{{ lg.name }}{% endif %}{% endfor %}{{ '—' if not t.logo_group_id }}</td>
+            <td>{{ t.name }}</td>
+            <td>{{ fcount }} Dateien{{ ', +inline' if t.html_content else '' }}</td>
+            <td class="text-sm muted">{% for lg in logo_groups %}{% if lg.id == t.logo_group_id %}{{ lg.name }}{% endif %}{% endfor %}{{ '—' if not t.logo_group_id }}</td>
             <td><button class="btn btn-secondary btn-xs" onclick="
                 document.querySelectorAll('.tpl-panel').forEach(p => p.style.display='none');
                 document.getElementById('tpl-{{ t.id }}').style.display='block';
-            ">Edit</button></td>
-            <td><form method="post" action="/templates/{{ t.id }}/delete" onsubmit="return confirm('Delete {{ t.name }} + all files?')" style="display:inline">
-                <button class="btn btn-danger btn-xs">Delete</button>
+            ">Bearbeiten</button></td>
+            <td><form method="post" action="/templates/{{ t.id }}/delete" onsubmit="return confirm('{{ t.name }} + alle Dateien löschen?')" style="display:inline">
+                <button class="btn btn-danger btn-xs">Löschen</button>
             </form></td>
         </tr>
         {% endfor %}
@@ -45,45 +45,45 @@
 
     {% for t in templates %}
     {% set files = db.get_template_files(t.id) %}
-    <div id="tpl-{{ t.id }}" class="tpl-panel" style="display:none;border:1px solid var(--border-light);border-radius:var(--radius);padding:16px;margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="margin:0">{{ t.name }}
-                {% if files %}<span class="badge badge-info" style="margin-left:8px">{{ files|length }} files</span>{% endif %}
+    <div id="tpl-{{ t.id }}" class="tpl-panel card" style="display:none">
+        <div class="flex items-center justify-between mb-md">
+            <h3 class="flex items-center gap-sm" style="margin:0">{{ t.name }}
+                {% if files %}<span class="badge badge-info">{{ files|length }} Dateien</span>{% endif %}
             </h3>
-            <form method="post" action="/templates/{{ t.id }}/delete" onsubmit="return confirm('Delete template + all files?')">
-                <button class="btn btn-danger btn-sm">Delete Template</button>
+            <form method="post" action="/templates/{{ t.id }}/delete" onsubmit="return confirm('Vorlage + alle Dateien löschen?')">
+                <button class="btn btn-danger btn-sm">Vorlage löschen</button>
             </form>
         </div>
 
-        <!-- Inline editor -->
+        <!-- Inline-Editor -->
         <form method="post" action="/templates/{{ t.id }}/save">
             <div class="grid-2">
                 <div>
                     <label>Name</label><input name="name" value="{{ t.name }}">
                 </div>
                 <div>
-                    <label>Logo Group</label>
+                    <label>Logo-Gruppe</label>
                     <select name="logo_group_id">
-                        <option value="0">Global (default)</option>
+                        <option value="0">Global (Standard)</option>
                         {% for lg in logo_groups %}<option value="{{ lg.id }}" {{ 'selected' if lg.id == t.logo_group_id }}>{{ lg.name }}</option>{% endfor %}
                     </select>
                 </div>
             </div>
-            <label>Inline HTML (used if no files uploaded)</label>
-            <textarea name="html_content" rows="12" style="font-family:'SF Mono',Consolas,monospace;font-size:12px;line-height:1.5">{{ t.html_content }}</textarea>
-            <div class="form-help">Variables: {email}, {email_user}, {domain}, {Logo}, {RedirectLink}, {MacroName}, spintax, RANDSTR</div>
-            <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Save</button></div>
+            <label>Inline-HTML (wird verwendet, wenn keine Dateien hochgeladen sind)</label>
+            <textarea name="html_content" rows="12" class="mono text-sm">{{ t.html_content }}</textarea>
+            <div class="form-help">Variablen: {email}, {email_user}, {domain}, {Logo}, {RedirectLink}, {MacroName}, spintax, RANDSTR</div>
+            <div class="mt-sm"><button class="btn btn-primary btn-sm">Speichern</button></div>
         </form>
 
-        <!-- Files -->
+        <!-- Dateien -->
         {% if files %}
         <div class="divider"></div>
-        <label style="font-weight:600">Uploaded HTML Files ({{ files|length }})</label>
+        <label>Hochgeladene HTML-Dateien ({{ files|length }})</label>
         <div style="max-height:200px;overflow-y:auto">
         {% for f in files %}
         <div class="file-item">
             <span class="file-name">{{ f.filename }}</span>
-            <span style="font-size:11px;color:var(--fg2)">{{ f.html_content|length }} chars</span>
+            <span class="text-xs muted">{{ f.html_content|length }} Zeichen</span>
             <form method="post" action="/templates/files/{{ f.id }}/delete" style="display:inline">
                 <button class="btn btn-danger btn-xs btn-icon">&#10005;</button>
             </form>
@@ -94,56 +94,56 @@
 
         <!-- Upload -->
         <div class="divider"></div>
-        <form method="post" action="/templates/{{ t.id }}/upload-htmls" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:flex-end">
-            <div style="flex:1">
-                <label>Upload HTML files into this template</label>
+        <form method="post" action="/templates/{{ t.id }}/upload-htmls" enctype="multipart/form-data" class="flex gap-md items-end">
+            <div class="flex-1">
+                <label>HTML-Dateien in diese Vorlage hochladen</label>
                 <input type="file" name="files" multiple accept=".html,.htm" required>
             </div>
-            <button class="btn btn-primary btn-sm">Upload</button>
+            <button class="btn btn-primary btn-sm">Hochladen</button>
         </form>
 
-        <!-- Preview -->
+        <!-- Vorschau -->
         <div class="divider"></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/preview-raw" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">Raw</button>
-            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/preview-processed" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">Processed</button>
+        <div class="flex flex-wrap gap-sm mb-sm">
+            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/preview-raw" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">Roh</button>
+            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/preview-processed" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">Verarbeitet</button>
             <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/preview-af" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">+ Basic AF</button>
             <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/preview-advanced-af" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">+ Advanced AF</button>
             <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/preview-3way" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">3-Way</button>
             <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/preview-mime" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">MIME</button>
-            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/text-ratio" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">Ratio</button>
-            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/mime-profiles" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">MIME Profiles</button>
-            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/spam-check" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">Spam Score</button>
+            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/text-ratio" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">Text-Verhältnis</button>
+            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/mime-profiles" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">MIME-Profile</button>
+            <button class="btn btn-secondary btn-xs" hx-post="/templates/{{ t.id }}/spam-check" hx-target="#tpl-out-{{ t.id }}" hx-swap="innerHTML">Spam-Score</button>
         </div>
         <div id="tpl-out-{{ t.id }}"></div>
     </div>
     {% endfor %}
     {% else %}
-    <div class="empty-state"><div class="icon">&#9998;</div><p>No templates. Create one below.</p></div>
+    <div class="empty-state"><div class="icon">&#9998;</div><p>Keine Vorlagen vorhanden. Erstelle unten eine neue.</p></div>
     {% endif %}
 </div>
 
-<div class="grid-2" style="align-items:start">
+<div class="grid-2 items-start">
     <details {{ 'open' if not templates }}>
-        <summary>Create Template</summary>
-        <div class="details-body" style="padding-top:12px">
+        <summary>Vorlage erstellen</summary>
+        <div class="details-body">
             <form method="post" action="/templates/add">
-                <label>Template Name</label><input name="name" placeholder="e.g. Marke XY" required>
-                <label>HTML Content (optional — upload files after)</label>
-                <textarea name="html_content" rows="8" placeholder="<html><body>&#10;  <p>Hello {email_user}</p>&#10;</body></html>" style="font-family:'SF Mono',Consolas,monospace;font-size:12px"></textarea>
-                <div style="margin-top:12px"><button class="btn btn-primary">Create</button></div>
+                <label>Vorlagenname</label><input name="name" placeholder="z. B. Marke XY" required>
+                <label>HTML-Inhalt (optional — Dateien können danach hochgeladen werden)</label>
+                <textarea name="html_content" rows="8" placeholder="<html><body>&#10;  <p>Hallo {email_user}</p>&#10;</body></html>" class="mono text-sm"></textarea>
+                <div class="mt-md"><button class="btn btn-primary">Erstellen</button></div>
             </form>
         </div>
     </details>
     <details>
-        <summary>Bulk Upload HTMLs to New Template</summary>
-        <div class="details-body" style="padding-top:12px">
+        <summary>Bulk-Upload HTMLs in neue Vorlage</summary>
+        <div class="details-body">
             <form method="post" action="/templates/add">
-                <label>Template Name</label><input name="name" placeholder="e.g. Marke XY Batch" required>
+                <label>Vorlagenname</label><input name="name" placeholder="z. B. Marke XY Batch" required>
                 <input type="hidden" name="html_content" value="">
-                <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Create Empty</button></div>
+                <div class="mt-sm"><button class="btn btn-primary btn-sm">Leer erstellen</button></div>
             </form>
-            <div class="form-help">Create the template first, then select it above and upload HTMLs into it.</div>
+            <div class="form-help">Erst die Vorlage anlegen, dann oben auswählen und HTMLs hochladen.</div>
         </div>
     </details>
 </div>

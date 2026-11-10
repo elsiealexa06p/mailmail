@@ -3,23 +3,23 @@
 {% block content %}
 <div class="page-header">
     <h1>S3 CDN Logos</h1>
-    <span class="badge badge-info">CDN Pool: {{ pool_size }} URLs (Cloudinary + S3 zusammen)</span>
+    <span class="badge badge-info">CDN-Pool: {{ pool_size }} URLs (Cloudinary + S3 zusammen)</span>
 </div>
 
-<div class="card" style="margin-bottom:12px">
-    <p class="muted" style="font-size:12px;margin:0">
-        Nutzt die S3-Accounts die du bereits unter
-        <a href="/redirects" style="color:var(--accent)">/redirects</a> für S3-Redirects angelegt hast —
+<div class="card mb-md">
+    <p class="muted text-sm" style="margin:0">
+        Nutzt die S3-Accounts, die du bereits unter
+        <a href="/redirects">/redirects</a> für S3-Redirects angelegt hast —
         derselbe IAM-Key funktioniert direkt hier für Logo-Uploads.
         Neuer Account? → dort anlegen, kommt automatisch hier her.
     </p>
 </div>
 
 {% if not accounts %}
-<div class="card" style="margin-bottom:12px">
+<div class="card mb-md">
     <div class="alert alert-warning" style="margin:0">
         Noch kein S3-Account. Leg einen unter
-        <a href="/redirects" style="color:var(--accent);font-weight:600">/redirects</a>
+        <a href="/redirects" style="font-weight:600">/redirects</a>
         an (Name + IAM Access-Key + Secret + optional Proxy) — danach findest
         du ihn hier wieder.
     </div>
@@ -27,12 +27,12 @@
 {% else %}
 
 {% for a in accounts %}
-<div class="card" style="margin-bottom:12px">
+<div class="card mb-md">
     <div class="card-header">
         <h3>{{ a.name }}
-            {% if a.is_primary %}<span class="badge badge-running" style="margin-left:6px">Primary</span>{% endif %}
+            {% if a.is_primary %}<span class="badge badge-running" style="margin-left:6px">Primär</span>{% endif %}
         </h3>
-        <span style="margin-left:auto;font-family:monospace;font-size:11px;color:var(--fg2)">
+        <span class="ml-auto mono text-xs muted">
             {{ a.access_key[:8] }}…{{ a.access_key[-4:] }}
             {% if a.proxy_id %}· <span class="badge badge-info" style="font-size:10px">Proxy</span>{% endif %}
         </span>
@@ -43,20 +43,20 @@
     {% for b in (a.buckets or '').replace(',','\n').split('\n') if b.strip() %}
         {% set _ = bucket_lines.append(b.strip()) %}
     {% endfor %}
-    <details style="margin-bottom:8px">
-        <summary style="cursor:pointer;font-weight:600;font-size:13px">
+    <details class="mb-sm">
+        <summary>
             Buckets für Logo-Uploads
             <span class="badge badge-info" style="margin-left:6px">{{ bucket_lines|length }}</span>
-            <span style="color:var(--fg3);font-size:11px;font-weight:400;margin-left:4px">— aufklappen</span>
+            <span class="muted text-xs" style="margin-left:4px">— aufklappen</span>
         </summary>
-        <table style="font-size:11px;font-family:monospace;margin:8px 0;width:auto">
+        <table class="mono text-xs" style="margin:8px 0;width:auto">
             <tbody>
             {% for line in bucket_lines %}
             {% set parts = line.split(':') %}
             {% set bname = parts[0] %}
             {% set breg = parts[1] if parts|length > 1 else 'us-east-1' %}
             <tr>
-                <td style="padding:2px 8px 2px 0;color:var(--fg2)">{{ bname }}<span style="color:var(--fg3)">:{{ breg }}</span></td>
+                <td class="muted" style="padding:2px 8px 2px 0">{{ bname }}<span style="color:var(--fg3)">:{{ breg }}</span></td>
                 <td style="padding:2px 0">
                     <form hx-post="/s3-logos/accounts/{{ a.id }}/delete-bucket"
                           hx-target="#s3-del-{{ a.id }}" hx-swap="innerHTML"
@@ -72,9 +72,9 @@
             </tbody>
         </table>
     </details>
-    <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:4px">
+    <div class="mb-md flex flex-wrap gap-xs">
         <button class="btn btn-secondary btn-xs" hx-post="/s3-logos/accounts/{{ a.id }}/test-buckets"
-                hx-target="#s3-test-{{ a.id }}" hx-swap="innerHTML">Test alle Buckets</button>
+                hx-target="#s3-test-{{ a.id }}" hx-swap="innerHTML">Alle Buckets testen</button>
         <button class="btn btn-secondary btn-xs"
                 hx-post="/s3-logos/accounts/{{ a.id }}/delete-empty-buckets"
                 hx-target="#s3-test-{{ a.id }}" hx-swap="innerHTML"
@@ -87,21 +87,21 @@
                 hx-confirm="ALLE {{ bucket_lines|length }} Buckets dieses Accounts leeren + löschen? Alle Logo-Varianten sind danach weg.">
             &#10005; Alle Buckets löschen
         </button>
-        <div id="s3-test-{{ a.id }}" style="margin-top:4px;width:100%"></div>
-        <div id="s3-del-{{ a.id }}" style="width:100%"></div>
+        <div id="s3-test-{{ a.id }}" class="mt-xs w-full"></div>
+        <div id="s3-del-{{ a.id }}" class="w-full"></div>
     </div>
     {% else %}
-    <h4 style="font-size:13px;margin:0 0 6px">Buckets für Logo-Uploads</h4>
-    <div class="alert alert-warning" style="font-size:12px;padding:6px 10px;margin-bottom:8px">
+    <h4 class="text-md mb-sm" style="margin:0 0 6px">Buckets für Logo-Uploads</h4>
+    <div class="alert alert-warning text-sm mb-sm" style="padding:6px 10px">
         Noch keine Buckets für Logo-Uploads. Leg einen an ↓
     </div>
     {% endif %}
 
     <details {{ 'open' if not a.buckets }}>
-        <summary style="cursor:pointer;font-weight:600;font-size:13px">Bucket automatisch anlegen</summary>
+        <summary>Bucket automatisch anlegen</summary>
         <form hx-post="/s3-logos/accounts/{{ a.id }}/setup-bucket"
               hx-target="#s3-setup-{{ a.id }}" hx-swap="innerHTML"
-              style="margin-top:8px">
+              class="mt-sm">
             <div class="grid-2">
                 <div>
                     <label>Bucket-Name (unique auf ganz AWS!)</label>
@@ -132,24 +132,24 @@
                 <code>s3:PutBucketPolicy</code>, <code>s3:PutBucketPublicAccessBlock</code>,
                 <code>s3:PutObject</code>, <code>s3:ListBucket</code>,
                 <code>s3:DeleteObject</code>, <code>s3:DeleteBucket</code>
-                (letzte drei nur für die Löschen-Buttons).
+                (die letzten drei nur für die Löschen-Buttons).
                 Object-ACLs werden nicht mehr genutzt — Public-Read läuft über die
                 Bucket-Policy (AWS-Default „Bucket owner enforced" seit 2023).
             </div>
-            <div style="margin-top:8px">
+            <div class="mt-sm">
                 <button class="btn btn-primary btn-sm">Bucket anlegen + konfigurieren</button>
             </div>
         </form>
-        <div id="s3-setup-{{ a.id }}" style="margin-top:10px"></div>
+        <div id="s3-setup-{{ a.id }}" class="mt-md"></div>
     </details>
 </div>
 {% endfor %}
 
-<div class="card" style="margin-bottom:12px;border:2px solid var(--accent)">
+<div class="card mb-md" style="border:2px solid var(--accent)">
     <h3>&#128640; Auto-Batch (empfohlen)</h3>
-    <p class="muted" style="font-size:12px">
-        Ein Klick: X Buckets in random Regionen anlegen → Source-Logos aus <a href="/logos" style="color:var(--accent)">/logos</a>
-        wählen → Y Varianten pro Logo werden verteilt auf alle neuen Buckets hochgeladen.
+    <p class="muted text-sm">
+        Ein Klick: X Buckets in zufälligen Regionen anlegen → Source-Logos aus <a href="/logos">/logos</a>
+        auswählen → Y Varianten pro Logo werden verteilt auf alle neuen Buckets hochgeladen.
         Kein manueller Bucket-Name, keine Kollisions-Probleme, kein Nachdenken.
     </p>
     <form hx-post="/s3-logos/auto-batch" hx-target="#s3-batch-result" hx-swap="innerHTML">
@@ -164,13 +164,13 @@
 
                 <label>Anzahl neuer Buckets</label>
                 <input name="bucket_count" type="number" value="3" min="1" max="30">
-                <div class="form-help">Buckets bekommen random Namen — 4 Strategien random-verteilt: <code>media-{hex}</code>, <code>web-assets-{hex}</code>, <code>s3-{region}-{hex}</code> (SDK-like), <code>{hex}</code> (pure token). Kein Bezug zum Mailer sichtbar.</div>
+                <div class="form-help">Buckets bekommen zufällige Namen — 4 Strategien zufällig verteilt: <code>media-{hex}</code>, <code>web-assets-{hex}</code>, <code>s3-{region}-{hex}</code> (SDK-like), <code>{hex}</code> (pure token). Kein Bezug zum Mailer sichtbar.</div>
 
                 <label>Regionen (Multi-Select — pro Bucket round-robin)</label>
-                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0" id="s3-regions-{{ accounts[0].id if accounts else 0 }}">
+                <div class="flex flex-wrap" style="gap:6px;padding:6px 0" id="s3-regions-{{ accounts[0].id if accounts else 0 }}">
                     {% for r in regions %}
-                    <label style="display:flex;gap:4px;align-items:center;font-weight:400;cursor:pointer;font-size:12px">
-                        <input type="checkbox" name="_region_{{ r }}" value="1" style="width:auto"
+                    <label class="flex items-center text-sm" style="gap:4px;font-weight:400;cursor:pointer">
+                        <input type="checkbox" name="_region_{{ r }}" value="1"
                                {{ 'checked' if r in ['eu-central-1','us-east-1','eu-west-1'] }}
                                onchange="var f=this.form;f.regions_csv.value=Array.from(f.querySelectorAll('input[name^=_region_]:checked')).map(x=>x.name.replace('_region_','')).join(',')">
                         <span>{{ r }}</span>
@@ -179,11 +179,11 @@
                 </div>
                 <input type="hidden" name="regions_csv" value="eu-central-1,us-east-1,eu-west-1">
 
-                <label>Bucket-Prefix (leer = random Naming-Strategien)</label>
+                <label>Bucket-Prefix (leer = zufällige Naming-Strategien)</label>
                 <input name="bucket_prefix" value="" pattern="[a-z0-9\-]*"
-                       placeholder="leer lassen — jeder Bucket wird random benannt">
+                       placeholder="leer lassen — jeder Bucket wird zufällig benannt">
                 <div class="form-help">
-                    Leer = jeder Bucket zieht random eine von 4 Naming-Strategien:
+                    Leer = jeder Bucket zieht zufällig eine von 4 Naming-Strategien:
                     generisches Wort (<code>media-…</code>), Kombi (<code>web-assets-…</code>),
                     SDK-like mit Region (<code>s3-eu-central-1-…</code>) oder pure hex
                     (<code>a7f3b2c891234…</code>). Keine „mailer"-Signatur mehr.<br>
@@ -191,20 +191,20 @@
                 </div>
             </div>
             <div>
-                <label>Source-Logo(s) — aus <a href="/logos" style="color:var(--accent)">/logos</a></label>
-                <div style="display:flex;gap:12px;margin:4px 0 8px;font-size:12px">
-                    <label style="display:flex;gap:4px;align-items:center;font-weight:400;cursor:pointer">
-                        <input type="radio" name="source_mode" value="group" checked style="width:auto"
+                <label>Source-Logo(s) — aus <a href="/logos">/logos</a></label>
+                <div class="flex text-sm" style="gap:12px;margin:4px 0 8px">
+                    <label class="flex items-center" style="gap:4px;font-weight:400;cursor:pointer">
+                        <input type="radio" name="source_mode" value="group" checked
                                onchange="document.getElementById('src-group').style.display='block';document.getElementById('src-logos').style.display='none'">
                         <span>Logo-Gruppe</span>
                     </label>
-                    <label style="display:flex;gap:4px;align-items:center;font-weight:400;cursor:pointer">
-                        <input type="radio" name="source_mode" value="logos" style="width:auto"
+                    <label class="flex items-center" style="gap:4px;font-weight:400;cursor:pointer">
+                        <input type="radio" name="source_mode" value="logos"
                                onchange="document.getElementById('src-group').style.display='none';document.getElementById('src-logos').style.display='block'">
                         <span>Einzelne Logos</span>
                     </label>
-                    <label style="display:flex;gap:4px;align-items:center;font-weight:400;cursor:pointer">
-                        <input type="radio" name="source_mode" value="all" style="width:auto"
+                    <label class="flex items-center" style="gap:4px;font-weight:400;cursor:pointer">
+                        <input type="radio" name="source_mode" value="all"
                                onchange="document.getElementById('src-group').style.display='none';document.getElementById('src-logos').style.display='none'">
                         <span>Alle ({{ source_logos|length }})</span>
                     </label>
@@ -218,7 +218,7 @@
                         {% endfor %}
                     </select>
                     {% if not logo_groups %}
-                    <div class="form-help">Keine Gruppen — leg eine in <a href="/logos" style="color:var(--accent)">/logos</a> an oder nutze „Einzelne Logos".</div>
+                    <div class="form-help">Keine Gruppen — leg eine in <a href="/logos">/logos</a> an oder nutze „Einzelne Logos".</div>
                     {% endif %}
                 </div>
 
@@ -230,31 +230,31 @@
                         {% endfor %}
                     </select>
                     <input type="hidden" name="logo_ids" value="">
-                    <div class="form-help">Ctrl/Cmd+Click für Multi-Select.</div>
+                    <div class="form-help">Strg/Cmd+Klick für Mehrfachauswahl.</div>
                 </div>
 
                 <label>Varianten pro Source-Logo</label>
                 <input name="variants_per_logo" type="number" value="50" min="1" max="500">
                 <div class="form-help">3 Logos × 50 Varianten = 150 Uploads, verteilt auf alle neuen Buckets.</div>
 
-                <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:8px">
-                    <input type="checkbox" name="pixel_tweak" value="1" checked style="width:auto">
+                <label class="flex items-center mt-sm" style="gap:6px;font-weight:400;cursor:pointer">
+                    <input type="checkbox" name="pixel_tweak" value="1" checked>
                     <span>Pixel-Nudge (Bytes-unique pro Variante)</span>
                 </label>
             </div>
         </div>
-        <div style="margin-top:14px">
+        <div class="mt-md">
             <button class="btn btn-primary btn-sm">Auto-Batch starten</button>
         </div>
     </form>
-    <div id="s3-batch-result" style="margin-top:12px"></div>
+    <div id="s3-batch-result" class="mt-md"></div>
 </div>
 
-<details style="margin-bottom:12px">
-    <summary style="cursor:pointer;font-weight:600">Manueller Upload (fine-grained)</summary>
-    <div class="card" style="margin-top:8px">
+<details class="mb-md">
+    <summary>Manueller Upload (fein-granular)</summary>
+    <div class="card mt-sm">
         <h3>Ein Base-Logo → Varianten auf existierende Buckets</h3>
-        <p class="muted" style="font-size:12px">
+        <p class="muted text-sm">
             Wenn du schon Buckets im Account hast und nur ein Logo hochladen willst.
         </p>
         <form method="post" action="/s3-logos/upload" enctype="multipart/form-data"
@@ -275,22 +275,22 @@
                     <input type="file" name="file" accept="image/*" required>
                     <label>Anzahl Varianten (1-500)</label>
                     <input type="number" name="count" value="30" min="1" max="500">
-                    <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:6px">
-                        <input type="checkbox" name="pixel_tweak" value="1" checked style="width:auto">
+                    <label class="flex items-center" style="gap:6px;font-weight:400;cursor:pointer;margin-top:6px">
+                        <input type="checkbox" name="pixel_tweak" value="1" checked>
                         <span>Pixel-Nudge</span>
                     </label>
                 </div>
             </div>
-            <div style="margin-top:12px"><button class="btn btn-primary btn-sm">Upload + Generate</button></div>
+            <div class="mt-md"><button class="btn btn-primary btn-sm">Upload + Generieren</button></div>
         </form>
-        <div id="s3-upload-result" style="margin-top:12px"></div>
+        <div id="s3-upload-result" class="mt-md"></div>
     </div>
 </details>
 
 {% if uploads %}
 <div class="card">
     <h3>Hochgeladene Base-Logos <span class="count">{{ uploads|length }}</span></h3>
-    <table style="font-size:12px">
+    <table class="text-sm">
         <thead><tr><th>Datei</th><th>Account</th><th>Varianten</th><th>Erstellt</th><th></th></tr></thead>
         <tbody>
         {% for u in uploads %}
@@ -298,11 +298,11 @@
             <td>{{ u.filename }}</td>
             <td>{{ u.account_name or '—' }}</td>
             <td><span class="badge badge-info">{{ u.variant_count }}</span></td>
-            <td style="font-size:11px;color:var(--fg2)">{{ u.created_at }}</td>
+            <td class="text-xs muted">{{ u.created_at }}</td>
             <td>
                 <details style="display:inline-block;vertical-align:middle">
                     <summary class="btn btn-secondary btn-xs" style="display:inline-block">URLs</summary>
-                    <ul style="margin:4px 0;padding-left:16px;font-family:monospace;font-size:10px;max-height:200px;overflow:auto">
+                    <ul class="mono" style="margin:4px 0;padding-left:16px;font-size:10px;max-height:200px;overflow:auto">
                         {% for l in u.links %}<li>{{ l.url }}</li>{% endfor %}
                     </ul>
                 </details>

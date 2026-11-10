@@ -3,47 +3,47 @@
 {% block content %}
 <div class="page-header"><h1>Logos</h1></div>
 
-<!-- Logo Groups -->
+<!-- Logo-Gruppen -->
 <div class="card">
-    <div class="card-header"><h3>Logo Groups</h3></div>
+    <div class="card-header"><h3>Logo-Gruppen</h3></div>
     {% if logo_groups %}
-    <table style="margin-bottom:12px">
-        <thead><tr><th>Group</th><th>Logos</th><th>Variants</th><th>Cloudinary</th><th></th></tr></thead>
+    <table class="mb-md">
+        <thead><tr><th>Gruppe</th><th>Logos</th><th>Varianten</th><th>Cloudinary</th><th></th></tr></thead>
         <tbody>
         {% for g in logo_groups %}
         {% set group_logos = db.get_logos_by_group(g.id) %}
         {% set cdn_count = g.get('cdn_count', 0) %}
         <tr>
-            <td style="font-weight:500">{{ g.name }}</td>
+            <td>{{ g.name }}</td>
             <td>{{ group_logos|length }}</td>
-            <td style="white-space:nowrap">
+            <td class="text-nowrap">
                 {{ g.variant_count }}
                 {% if g.variant_count > 0 %}
-                <a href="/logos/export-variants?group_id={{ g.id }}" class="btn btn-secondary btn-xs btn-icon" title="Export ZIP" style="margin-left:2px">&#8615;</a>
+                <a href="/logos/export-variants?group_id={{ g.id }}" class="btn btn-secondary btn-xs btn-icon" title="ZIP-Export">&#8615;</a>
                 <button class="btn btn-secondary btn-xs"
                         hx-get="/logos/variants/list?group_id={{ g.id }}"
                         hx-target="#variant-gallery" hx-swap="innerHTML"
-                        title="Browse variants">View</button>
+                        title="Varianten durchsuchen">Anzeigen</button>
                 <form hx-post="/logos/clear-variants" hx-target="closest td" hx-swap="innerHTML"
-                      hx-confirm="Clear {{ g.variant_count }} variants?" style="display:inline">
+                      hx-confirm="{{ g.variant_count }} Varianten löschen?" style="display:inline">
                     <input type="hidden" name="group_id" value="{{ g.id }}">
                     <button class="btn btn-danger btn-xs btn-icon">&#10005;</button>
                 </form>
                 {% endif %}
             </td>
-            <td style="white-space:nowrap">
+            <td class="text-nowrap">
                 {% if g.variant_count > 0 %}
-                <span style="font-size:12px;color:var(--fg2)">{{ cdn_count }} URLs</span>
+                <span class="text-sm muted">{{ cdn_count }} URLs</span>
                 <form hx-post="/logos/upload-cloudinary" hx-target="#cdn-result-{{ g.id }}" hx-swap="innerHTML" style="display:inline;margin-left:4px">
                     <input type="hidden" name="group_id" value="{{ g.id }}">
-                    <button class="btn btn-secondary btn-xs">Upload</button>
+                    <button class="btn btn-secondary btn-xs">Hochladen</button>
                 </form>
                 <div id="cdn-result-{{ g.id }}"></div>
                 {% else %}—{% endif %}
             </td>
             <td>
-                <form method="post" action="/logos/group/{{ g.id }}/delete" onsubmit="return confirm('Delete group + all logos?')" style="display:inline">
-                    <button class="btn btn-danger btn-xs">Delete</button>
+                <form method="post" action="/logos/group/{{ g.id }}/delete" onsubmit="return confirm('Gruppe + alle Logos löschen?')" style="display:inline">
+                    <button class="btn btn-danger btn-xs">Löschen</button>
                 </form>
             </td>
         </tr>
@@ -51,95 +51,95 @@
         </tbody>
     </table>
     {% endif %}
-    <form method="post" action="/logos/add-group" style="display:flex;gap:8px;align-items:flex-end">
-        <div style="flex:1">
-            <label>New Group Name</label>
+    <form method="post" action="/logos/add-group" class="flex gap-sm items-end">
+        <div class="flex-1">
+            <label>Neuer Gruppenname</label>
             <input name="name" placeholder="z.B. FirmaX" required>
         </div>
-        <button class="btn btn-primary btn-sm">Create Group</button>
+        <button class="btn btn-primary btn-sm">Gruppe erstellen</button>
     </form>
 </div>
 
-<!-- Source Logos -->
+<!-- Quell-Logos -->
 <div class="card">
-    <div class="card-header"><h3>Source Logos <span class="count">{{ logos|length }}</span></h3></div>
+    <div class="card-header"><h3>Quell-Logos <span class="count">{{ logos|length }}</span></h3></div>
     {% if logos %}
-    <div class="grid-4" style="margin-bottom:16px">
+    <div class="grid-4 mb-md">
         {% for l in logos %}
-        <div style="border:1px solid var(--border-light);border-radius:var(--radius);padding:10px;text-align:center">
+        <div class="text-center" style="border:1px solid var(--border-light);border-radius:var(--radius);padding:10px">
             <img src="{{ l.file_path }}" alt="{{ l.filename }}" style="max-width:120px;max-height:80px;object-fit:contain;margin-bottom:8px">
-            <div style="font-size:11px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ l.filename }}</div>
+            <div class="text-xs muted text-truncate">{{ l.filename }}</div>
             {% if l.group_id %}
-            <div style="font-size:10px;color:var(--accent);margin-top:2px">
+            <div class="mt-xs" style="font-size:10px;color:var(--accent)">
                 {% for g in logo_groups %}{% if g.id == l.group_id %}{{ g.name }}{% endif %}{% endfor %}
             </div>
             {% endif %}
-            <form method="post" action="/logos/{{ l.id }}/delete" style="margin-top:6px" onsubmit="return confirm('Delete?')">
-                <button class="btn btn-danger btn-xs">Delete</button>
+            <form method="post" action="/logos/{{ l.id }}/delete" class="mt-xs" onsubmit="return confirm('Löschen?')">
+                <button class="btn btn-danger btn-xs">Löschen</button>
             </form>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <div class="empty-state"><div class="icon">&#128247;</div><p>No source logos. Upload below.</p></div>
+    <div class="empty-state"><div class="icon">&#128247;</div><p>Keine Quell-Logos. Unten hochladen.</p></div>
     {% endif %}
 </div>
 
-<div class="grid-2" style="align-items:start">
+<div class="grid-2 items-start">
     <div class="card">
-        <h3>Upload Source Logos</h3>
+        <h3>Quell-Logos hochladen</h3>
         <form method="post" action="/logos/upload" enctype="multipart/form-data">
-            <label>Group (optional)</label>
+            <label>Gruppe (optional)</label>
             <select name="group_id">
-                <option value="0">No Group (global)</option>
+                <option value="0">Keine Gruppe (global)</option>
                 {% for g in logo_groups %}
                 <option value="{{ g.id }}">{{ g.name }}</option>
                 {% endfor %}
             </select>
-            <label>Select Images (PNG, JPG, GIF, WebP — max 5MB)</label>
+            <label>Bilder auswählen (PNG, JPG, GIF, WebP — max. 5 MB)</label>
             <input type="file" name="files" multiple accept=".png,.jpg,.jpeg,.gif,.webp" required>
-            <div style="margin-top:10px"><button class="btn btn-primary">Upload</button></div>
+            <div class="mt-sm"><button class="btn btn-primary">Hochladen</button></div>
         </form>
     </div>
 
     <div class="card">
-        <h3>Generate Variants</h3>
-        <p style="font-size:13px;color:var(--fg2);margin-bottom:10px">
-            Each group gets its own variant folder. Campaign uses variants from the template's logo group.
+        <h3>Varianten generieren</h3>
+        <p class="text-md muted mb-sm">
+            Jede Gruppe erhält einen eigenen Varianten-Ordner. Kampagnen verwenden Varianten aus der Logo-Gruppe des Templates.
         </p>
-        <form hx-post="/logos/generate-variants" hx-target="#variant-result" hx-swap="innerHTML" style="margin-bottom:8px">
-            <label>Logo Group</label>
+        <form hx-post="/logos/generate-variants" hx-target="#variant-result" hx-swap="innerHTML" class="mb-sm">
+            <label>Logo-Gruppe</label>
             <select name="group_id">
-                <option value="0">All Logos (global)</option>
+                <option value="0">Alle Logos (global)</option>
                 {% for g in logo_groups %}
                 <option value="{{ g.id }}">{{ g.name }}</option>
                 {% endfor %}
             </select>
-            <div class="form-row" style="margin-top:8px">
+            <div class="form-row mt-sm">
                 <div>
-                    <label>Total Variants</label>
+                    <label>Varianten gesamt</label>
                     <input name="variant_count" type="number" value="25" min="1" max="5000" style="margin:0">
                 </div>
                 <div class="shrink">
                     <label>&nbsp;</label>
-                    <button class="btn btn-primary btn-sm">Generate</button>
+                    <button class="btn btn-primary btn-sm">Generieren</button>
                 </div>
             </div>
         </form>
         {% if variant_count > 0 %}
-        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-            <a href="/logos/export-variants?group_id=0" class="btn btn-secondary btn-sm">Download ZIP</a>
+        <div class="mt-sm flex flex-wrap gap-xs">
+            <a href="/logos/export-variants?group_id=0" class="btn btn-secondary btn-sm">ZIP herunterladen</a>
             <button class="btn btn-secondary btn-sm"
                     hx-get="/logos/variants/list?group_id=0"
-                    hx-target="#variant-gallery" hx-swap="innerHTML">View Files</button>
+                    hx-target="#variant-gallery" hx-swap="innerHTML">Dateien anzeigen</button>
             <button class="btn btn-danger btn-sm"
                     hx-post="/logos/clear-variants"
                     hx-target="#variant-result"
                     hx-swap="innerHTML"
-                    hx-confirm="Clear all {{ variant_count }} variants?">Clear Variants</button>
+                    hx-confirm="Alle {{ variant_count }} Varianten löschen?">Varianten löschen</button>
         </div>
         {% endif %}
-        <div id="variant-result" style="margin-top:10px"></div>
+        <div id="variant-result" class="mt-sm"></div>
     </div>
 </div>
 

@@ -1,37 +1,37 @@
 {% extends "base.html" %}
-{% block title %} — Leads{% endblock %}
+{% block title %} — Lead-Listen{% endblock %}
 {% block content %}
-<div class="page-header"><h1>Lead Lists</h1></div>
+<div class="page-header"><h1>Lead-Listen</h1></div>
 
 <div class="card">
-    <div class="card-header"><h3>Lists <span class="count">{{ lead_lists|length }}</span></h3></div>
+    <div class="card-header"><h3>Listen <span class="count">{{ lead_lists|length }}</span></h3></div>
     {% if lead_lists %}
     {% for ll in lead_lists %}
     <details>
         <summary>
             <strong>{{ ll.name }}</strong>
-            <span style="margin-left:auto"><span class="badge badge-info">{{ "{:,}".format(ll.count) }} leads</span></span>
+            <span class="ml-auto"><span class="badge badge-info">{{ "{:,}".format(ll.count) }} Leads</span></span>
         </summary>
-        <div class="details-body" style="padding-top:12px">
-            <div class="grid-2" style="align-items:start">
+        <div class="details-body">
+            <div class="grid-2 items-start">
                 <div>
                     <form hx-post="/leads/{{ ll.id }}/import-text" hx-target="#lead-import-{{ ll.id }}" hx-swap="innerHTML">
-                        <label>Paste Leads</label>
-                        <textarea name="leads_text" rows="5" placeholder="user1@example.com&#10;user2@example.com" style="font-family:monospace;font-size:12px"></textarea>
-                        <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Import</button></div>
+                        <label>Leads einfügen</label>
+                        <textarea name="leads_text" rows="5" placeholder="user1@example.com&#10;user2@example.com" class="mono text-sm"></textarea>
+                        <div class="mt-sm"><button class="btn btn-primary btn-sm">Importieren</button></div>
                     </form>
-                    <div id="lead-import-{{ ll.id }}" style="margin-top:8px"></div>
+                    <div id="lead-import-{{ ll.id }}" class="mt-sm"></div>
                 </div>
                 <div>
                     <form method="post" action="/leads/{{ ll.id }}/upload" enctype="multipart/form-data">
-                        <label>Upload Files (.txt/.csv)</label>
+                        <label>Dateien hochladen (.txt/.csv)</label>
                         <input type="file" name="files" multiple accept=".txt,.csv" required>
-                        <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Upload</button></div>
+                        <div class="mt-sm"><button class="btn btn-primary btn-sm">Hochladen</button></div>
                     </form>
-                    <div style="margin-top:12px" class="btn-group">
-                        <a href="/leads/{{ ll.id }}/browse" class="btn btn-secondary btn-sm">Browse Leads</a>
-                        <form method="post" action="/leads/list/{{ ll.id }}/delete" onsubmit="return confirm('Delete list + all leads?')">
-                            <button class="btn btn-danger btn-sm">Delete List</button>
+                    <div class="btn-group mt-md">
+                        <a href="/leads/{{ ll.id }}/browse" class="btn btn-secondary btn-sm">Leads durchsuchen</a>
+                        <form method="post" action="/leads/list/{{ ll.id }}/delete" onsubmit="return confirm('Liste + alle Leads löschen?')">
+                            <button class="btn btn-danger btn-sm">Liste löschen</button>
                         </form>
                     </div>
                 </div>
@@ -40,29 +40,29 @@
     </details>
     {% endfor %}
     {% else %}
-    <div class="empty-state"><div class="icon">&#9776;</div><p>No lead lists. Create one below.</p></div>
+    <div class="empty-state"><div class="icon">&#9776;</div><p>Keine Lead-Listen vorhanden. Erstellen Sie unten eine.</p></div>
     {% endif %}
 </div>
 
-<div class="grid-2" style="align-items:start">
+<div class="grid-2 items-start">
     <details {{ 'open' if not lead_lists }}>
-        <summary>Create Lead List</summary>
-        <div class="details-body" style="padding-top:12px">
+        <summary>Lead-Liste erstellen</summary>
+        <div class="details-body">
             <form method="post" action="/leads/create-list">
-                <label>List Name</label>
-                <input name="name" placeholder="e.g. B2B Germany 50k" required>
-                <div style="margin-top:10px"><button class="btn btn-primary">Create</button></div>
+                <label>Listenname</label>
+                <input name="name" placeholder="z.B. B2B Deutschland 50k" required>
+                <div class="mt-md"><button class="btn btn-primary">Erstellen</button></div>
             </form>
         </div>
     </details>
     <details>
-        <summary>Bulk Upload (file per list)</summary>
-        <div class="details-body" style="padding-top:12px">
+        <summary>Massen-Upload (Datei pro Liste)</summary>
+        <div class="details-body">
             <form method="post" action="/leads/bulk-upload" enctype="multipart/form-data">
-                <label>Upload .txt/.csv files — each file = one list, named by filename</label>
+                <label>.txt/.csv Dateien hochladen — jede Datei = eine Liste, benannt nach Dateiname</label>
                 <input type="file" name="files" multiple accept=".txt,.csv" required>
-                <div class="form-help">e.g. Liste_23_04.txt → list "Liste_23_04"</div>
-                <div style="margin-top:10px"><button class="btn btn-primary">Upload All</button></div>
+                <div class="form-help">z.B. Liste_23_04.txt &rarr; Liste "Liste_23_04"</div>
+                <div class="mt-md"><button class="btn btn-primary">Alle hochladen</button></div>
             </form>
         </div>
     </details>

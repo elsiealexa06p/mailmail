@@ -1,25 +1,25 @@
 {% extends "base.html" %}
-{% block title %} — Campaign{% endblock %}
+{% block title %} — Kampagnen{% endblock %}
 {% block content %}
-<div class="page-header"><h1>Campaign</h1></div>
+<div class="page-header"><h1>Kampagnen</h1></div>
 
 {% if campaigns %}
 <div class="card" hx-get="/campaigns/table" hx-trigger="every 3s" hx-swap="innerHTML">
-    <div class="card-header"><h3>Campaigns <span class="count">{{ campaigns|length }}</span></h3></div>
-    <table><thead><tr><th>Name</th><th>SMTP List</th><th>Lead List</th><th>Progress</th><th>Total</th><th>Sent</th><th>Speed</th><th></th></tr></thead>
+    <div class="card-header"><h3>Kampagnen <span class="count">{{ campaigns|length }}</span></h3></div>
+    <table><thead><tr><th>Name</th><th>SMTP-Liste</th><th>Lead-Liste</th><th>Fortschritt</th><th>Gesamt</th><th>Versendet</th><th>Geschwindigkeit</th><th></th></tr></thead>
     <tbody>
     {% for c in campaigns %}
     <tr style="{{ 'background:var(--green-light)' if c.running }}">
         <td style="font-weight:500">{{ c.name }}</td>
-        <td style="font-size:12px">{{ c.smtp_list_name or '—' }}</td>
-        <td style="font-size:12px">{{ c.lead_list_name or '—' }}</td>
+        <td class="text-sm">{{ c.smtp_list_name or '—' }}</td>
+        <td class="text-sm">{{ c.lead_list_name or '—' }}</td>
         <td style="min-width:100px"><div class="progress"><div class="progress-bar" style="width:{{ c.pct }}%">{{ c.pct }}%</div></div></td>
         <td>{{ "{:,}".format(c.total_leads or 0) }}</td>
         <td style="color:var(--green);font-weight:500">{{ "{:,}".format(c.sent or 0) }}</td>
         <td>{{ "{:,}".format(c.speed) ~ "/h" if c.speed else "—" }}</td>
-        <td style="white-space:nowrap">
-            <form method="post" action="/campaigns/{{ c.id }}/start" style="display:inline"><button class="btn btn-success btn-xs" {{ 'disabled' if c.running }}>Start</button></form>
-            <form method="post" action="/campaigns/{{ c.id }}/stop" style="display:inline"><button class="btn btn-danger btn-xs" {{ 'disabled' if not c.running }}>Pause</button></form>
+        <td class="text-nowrap">
+            <form method="post" action="/campaigns/{{ c.id }}/start" style="display:inline"><button class="btn btn-success btn-xs" {{ 'disabled' if c.running }}>Starten</button></form>
+            <form method="post" action="/campaigns/{{ c.id }}/stop" style="display:inline"><button class="btn btn-danger btn-xs" {{ 'disabled' if not c.running }}>Pausieren</button></form>
         </td>
     </tr>
     {% endfor %}
@@ -30,47 +30,47 @@
 <details {{ 'open' if loop.first }}>
     <summary>
         {{ c.name }}
-        <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <span class="ml-auto flex items-center gap-sm">
             <span class="badge badge-{{ 'running' if c.running else c.status|lower }}">{{ c.status }}</span>
         </span>
     </summary>
-    <div class="details-body" style="padding-top:16px">
+    <div class="details-body">
         <div class="tabs">
-            <button class="tab-btn active" onclick="showTab(this.closest('details'), 'c-stats-{{ c.id }}')">Live Stats</button>
-            <button class="tab-btn" onclick="showTab(this.closest('details'), 'c-edit-{{ c.id }}')">Edit</button>
-            <button class="tab-btn" onclick="showTab(this.closest('details'), 'c-actions-{{ c.id }}')">Actions</button>
+            <button class="tab-btn active" onclick="showTab(this.closest('details'), 'c-stats-{{ c.id }}')">Live-Statistiken</button>
+            <button class="tab-btn" onclick="showTab(this.closest('details'), 'c-edit-{{ c.id }}')">Bearbeiten</button>
+            <button class="tab-btn" onclick="showTab(this.closest('details'), 'c-actions-{{ c.id }}')">Aktionen</button>
         </div>
         <div id="c-stats-{{ c.id }}" class="tab-content active" hx-get="/campaigns/{{ c.id }}/stats" hx-trigger="every 3s" hx-swap="innerHTML">
-            <p style="color:var(--fg2)">Loading...</p>
+            <p class="muted">Lädt...</p>
         </div>
         <div id="c-edit-{{ c.id }}" class="tab-content">
             <form method="post" action="/campaigns/{{ c.id }}/save">
                 <div class="grid-2">
                     <div>
                         <label>Name</label><input name="name" value="{{ c.name }}">
-                        <label>SMTP List</label>
+                        <label>SMTP-Liste</label>
                         <select name="smtp_list_id">
                             <option value="0">—</option>
                             {% for sl in smtp_lists %}<option value="{{ sl.id }}" {{ 'selected' if sl.id == c.smtp_list_id }}>{{ sl.name }} ({{ sl.count }})</option>{% endfor %}
                         </select>
-                        <label>Lead List</label>
+                        <label>Lead-Liste</label>
                         <select name="lead_list_id">
                             <option value="0">—</option>
                             {% for ll in lead_lists %}<option value="{{ ll.id }}" {{ 'selected' if ll.id == c.lead_list_id }}>{{ ll.name }} ({{ "{:,}".format(ll.count) }})</option>{% endfor %}
                         </select>
                         <label>Template</label>
                         <select name="template_id">
-                            <option value="0">All Templates</option>
+                            <option value="0">Alle Templates</option>
                             {% for tpl in templates %}<option value="{{ tpl.id }}" {{ 'selected' if tpl.id == c.template_id }}>{{ tpl.name }}</option>{% endfor %}
                         </select>
                     </div>
                     <div>
-                        <label>Redirect Pool</label>
+                        <label>Redirect-Pool</label>
                         <select name="redirect_pool_id">
-                            <option value="0">All Redirects</option>
+                            <option value="0">Alle Redirects</option>
                             {% for rp in redirect_pools %}<option value="{{ rp.id }}" {{ 'selected' if rp.id == c.redirect_pool_id }}>{{ rp.name }} ({{ rp.count }})</option>{% endfor %}
                         </select>
-                        <label>Media Pool (Logo-Group)</label>
+                        <label>Media-Pool (Logo-Group)</label>
                         <select name="logo_group_id">
                             <option value="0" {{ 'selected' if not c.get('logo_group_id') }}>— aus Template / kein Filter —</option>
                             {% for g in logo_groups %}
@@ -81,49 +81,47 @@
                             Welcher Media-Pool (CID + Cloudinary + S3) versorgt diese Kampagne.
                             Für parallele Kampagnen: Group A hier, Group B in der anderen Kampagne
                             → keine gemischten Assets. Leer = Template-Default.
-                            Pools werden in <a href="/pool" style="color:var(--accent)">/pool</a> gebaut.
+                            Pools werden in <a href="/pool">/pool</a> gebaut.
                         </div>
-                        <label>Schedule (HH:MM)</label>
+                        <label>Zeitplan (HH:MM)</label>
                         <input name="schedule_time" value="{{ c.schedule_time or '' }}" placeholder="14:30">
-                        <div class="form-help">Auto-start at this time. Empty = manual start.</div>
-                        <div class="form-help" style="margin-top:12px">
-                            Sending settings in <a href="/config" style="color:var(--accent)">Config</a>.
-                            Sender/Subject via <a href="/macros" style="color:var(--accent)">Macros</a>.
-                            Templates in <a href="/templates" style="color:var(--accent)">HTML Editor</a>.
+                        <div class="form-help">Automatischer Start zu dieser Zeit. Leer = manueller Start.</div>
+                        <div class="form-help mt-md">
+                            Versand-Einstellungen in <a href="/config">Config</a>.
+                            Sender/Betreff via <a href="/macros">Macros</a>.
+                            Templates im <a href="/templates">HTML-Editor</a>.
                         </div>
                     </div>
                 </div>
 
-                <details {{ 'open' if (c.get('rotate_subject_pools') or c.get('rotate_image_modes') or c.get('rotate_link_ref_styles') or c.get('rotate_from_name_pools')) }} style="margin-top:12px">
-                    <summary style="cursor:pointer;font-weight:600;font-size:13px">
+                <details {{ 'open' if (c.get('rotate_subject_pools') or c.get('rotate_image_modes') or c.get('rotate_link_ref_styles') or c.get('rotate_from_name_pools')) }} class="mt-md">
+                    <summary style="font-weight:600;font-size:13px">
                         Meta-Rotation (Anti-Cluster)
                         {% if c.get('rotate_subject_pools') or c.get('rotate_image_modes') or c.get('rotate_link_ref_styles') or c.get('rotate_from_name_pools') %}
-                        <span class="badge badge-running" style="margin-left:6px">ON</span>
+                        <span class="badge badge-running">ON</span>
                         {% endif %}
                     </summary>
-                    <div style="padding:10px 0 4px 0;font-size:12px;color:var(--fg2);margin-bottom:8px">
+                    <div class="form-help mb-sm" style="padding:10px 0 4px 0">
                         Pro Send unabhängig gewürfelt aus mehreren Pools/Optionen — so kann kein
                         Provider deine Mails über konstantes Muster (Subject-Set, Image-Format,
                         Link-Ref-Style) clustern. Alle Felder sind optional; leer = Standard-Verhalten.
                     </div>
 
-                    <label>Subject-Pools <span style="color:var(--fg2);font-weight:400;font-size:11px">(Pools durch Leerzeile getrennt, jede Zeile ein Betreff)</span></label>
-                    <textarea name="rotate_subject_pools" rows="8"
-                              style="font-family:monospace;font-size:12px"
+                    <label>Subject-Pools <span class="text-xs muted" style="font-weight:400;text-transform:none;letter-spacing:0">(Pools durch Leerzeile getrennt, jede Zeile ein Betreff)</span></label>
+                    <textarea name="rotate_subject_pools" rows="8" class="mono text-sm"
                               placeholder="Ihr Angebot wartet auf Sie&#10;Ihre Rückfrage — kurze Info&#10;Bezugnehmend auf unsere Nachricht&#10;&#10;Wichtige Aktualisierung — bitte lesen&#10;Aktueller Stand: Ihre Anfrage&#10;&#10;{Grüße}, kurzes Update&#10;{Grüße}, hier ist die Info">{{ c.get('rotate_subject_pools') or '' }}</textarea>
-                    <div class="form-help">Pool = Block ohne Leerzeile. Pro Mail: erst random Pool, dann random Zeile daraus. Macros/Spintax werden dann normal aufgelöst. Leer = klassisches Subject aus /config.</div>
+                    <div class="form-help">Pool = Block ohne Leerzeile. Pro Mail: erst zufälliger Pool, dann zufällige Zeile daraus. Macros/Spintax werden dann normal aufgelöst. Leer = klassischer Betreff aus /config.</div>
 
-                    <label style="margin-top:12px">From-Name-Pools <span style="color:var(--fg2);font-weight:400;font-size:11px">(gleiches Format wie oben)</span></label>
-                    <textarea name="rotate_from_name_pools" rows="4"
-                              style="font-family:monospace;font-size:12px"
+                    <label class="mt-md">From-Name-Pools <span class="text-xs muted" style="font-weight:400;text-transform:none;letter-spacing:0">(gleiches Format wie oben)</span></label>
+                    <textarea name="rotate_from_name_pools" rows="4" class="mono text-sm"
                               placeholder="Alexander {Nachname}&#10;A. {Nachname}&#10;&#10;{Vorname} {Nachname}&#10;{Vorname} von {Company}">{{ c.get('rotate_from_name_pools') or '' }}</textarea>
 
-                    <details {{ 'open' if c.get('auto_refresh_enabled') }} style="margin-top:14px;padding:10px 12px;border:1px solid var(--accent);border-radius:var(--radius)">
-                        <summary style="cursor:pointer;font-weight:600;font-size:13px">
+                    <details {{ 'open' if c.get('auto_refresh_enabled') }} class="mt-md" style="padding:10px 12px;border:1px solid var(--accent);border-radius:var(--radius)">
+                        <summary style="font-weight:600;font-size:13px">
                             &#128260; Auto-Refresh + Health-Adaptive Weights
-                            {% if c.get('auto_refresh_enabled') %}<span class="badge badge-running" style="margin-left:6px">ON</span>{% endif %}
+                            {% if c.get('auto_refresh_enabled') %}<span class="badge badge-running">ON</span>{% endif %}
                         </summary>
-                        <div style="padding:10px 0 4px 0;font-size:12px;color:var(--fg2);margin-bottom:8px">
+                        <div class="form-help mb-sm" style="padding:10px 0 4px 0">
                             Alle N Sends werden im Hintergrund neue Varianten
                             generiert und parallel zu Cloudinary + AWS-Buckets
                             hochgeladen + neue CID-Files geschrieben. Failt eine Quelle
@@ -132,8 +130,8 @@
                             Uploads scheitern → CID-only. Wenn CID auch dead →
                             alte Variants (letzter Fallback).
                         </div>
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px">
-                            <input type="checkbox" name="auto_refresh_enabled" value="1" style="width:auto"
+                        <label class="flex items-center gap-sm mb-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
+                            <input type="checkbox" name="auto_refresh_enabled" value="1"
                                    {{ 'checked' if c.get('auto_refresh_enabled') }}>
                             <span>Auto-Refresh aktivieren</span>
                         </label>
@@ -162,24 +160,26 @@
                             </div>
                             <div>
                                 <label>&nbsp;</label>
-                                <div class="alert" style="font-size:11px;padding:8px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius);color:var(--fg2)">
-                                    <strong>Wie's zusammenspielt:</strong><br>
-                                    Meta-Rotation → welche Modi überhaupt gewürfelt werden.<br>
-                                    Auto-Refresh → hält Assets frisch + baut Weights.<br>
-                                    Kaskaden-Fallback → wenn Modus stumm, silent zu CID.
+                                <div class="alert alert-info text-xs">
+                                    <div>
+                                        <strong>Wie's zusammenspielt:</strong><br>
+                                        Meta-Rotation → welche Modi überhaupt gewürfelt werden.<br>
+                                        Auto-Refresh → hält Assets frisch + baut Weights.<br>
+                                        Kaskaden-Fallback → wenn Modus stumm, silent zu CID.
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </details>
 
-                    <div class="grid-2" style="margin-top:12px">
+                    <div class="grid-2 mt-md">
                         <div>
                             <label>Image-Mode Rotation</label>
                             {% set imodes = (c.get('rotate_image_modes') or '').split(',') %}
-                            <div style="display:flex;flex-wrap:wrap;gap:8px;padding:6px 0">
+                            <div class="flex flex-wrap gap-sm" style="padding:6px 0">
                                 {% for m in ['cid','cdn','url','static_url','text'] %}
-                                <label style="display:flex;gap:4px;align-items:center;font-weight:400;cursor:pointer;font-size:12px">
-                                    <input type="checkbox" name="_rot_image_{{ m }}" value="1" style="width:auto"
+                                <label class="flex items-center gap-xs text-sm" style="font-weight:400;cursor:pointer;text-transform:none;letter-spacing:0">
+                                    <input type="checkbox" name="_rot_image_{{ m }}" value="1"
                                            {{ 'checked' if m in imodes }}
                                            onchange="document.getElementById('rot-image-{{ c.id }}').value=Array.from(this.form.querySelectorAll('input[name^=_rot_image_]:checked')).map(x=>x.name.replace('_rot_image_','')).join(',')">
                                     <span>{{ m }}</span>
@@ -187,29 +187,28 @@
                                 {% endfor %}
                             </div>
                             <input type="hidden" name="rotate_image_modes" id="rot-image-{{ c.id }}" value="{{ c.get('rotate_image_modes') or '' }}">
-                            <div class="form-help">Mehrere gewählt = pro Mail random. Leer = /config-Standard.</div>
-                            <details style="margin-top:8px;padding:6px 8px;background:var(--bg2);border-radius:4px">
-                                <summary style="cursor:pointer;font-size:11px;color:var(--fg2);font-weight:600">
+                            <div class="form-help">Mehrere gewählt = pro Mail zufällig. Leer = /config-Standard.</div>
+                            <details class="mt-sm" style="padding:6px 8px;background:var(--bg2);border-radius:var(--radius)">
+                                <summary class="text-xs muted" style="font-weight:600">
                                     &#128200; Live-Diagnose (welcher Mode wird wie oft gewählt?)
                                 </summary>
                                 <div hx-get="/campaigns/{{ c.id }}/image-stats"
                                      hx-trigger="load, every 3s" hx-swap="innerHTML"
-                                     style="margin-top:6px;font-size:11px">
-                                    <em style="color:var(--fg3)">Lade Stats…</em>
+                                     class="mt-xs text-xs">
+                                    <em class="muted">Lade Stats…</em>
                                 </div>
-                                <button type="button" class="btn btn-secondary btn-xs"
+                                <button type="button" class="btn btn-secondary btn-xs mt-xs"
                                         hx-post="/campaigns/{{ c.id }}/reset-image-stats"
-                                        hx-target="previous div" hx-swap="innerHTML"
-                                        style="font-size:10px;margin-top:4px">Stats reset</button>
+                                        hx-target="previous div" hx-swap="innerHTML">Stats zurücksetzen</button>
                             </details>
                         </div>
                         <div>
                             <label>Link-Ref-Style Rotation</label>
                             {% set rstyles = (c.get('rotate_link_ref_styles') or '').split(',') %}
-                            <div style="display:flex;flex-wrap:wrap;gap:8px;padding:6px 0">
+                            <div class="flex flex-wrap gap-sm" style="padding:6px 0">
                                 {% for s in ['none','base64','random','email','utm'] %}
-                                <label style="display:flex;gap:4px;align-items:center;font-weight:400;cursor:pointer;font-size:12px">
-                                    <input type="checkbox" name="_rot_ref_{{ s }}" value="1" style="width:auto"
+                                <label class="flex items-center gap-xs text-sm" style="font-weight:400;cursor:pointer;text-transform:none;letter-spacing:0">
+                                    <input type="checkbox" name="_rot_ref_{{ s }}" value="1"
                                            {{ 'checked' if s in rstyles }}
                                            onchange="document.getElementById('rot-ref-{{ c.id }}').value=Array.from(this.form.querySelectorAll('input[name^=_rot_ref_]:checked')).map(x=>x.name.replace('_rot_ref_','')).join(',')">
                                     <span>{{ s }}</span>
@@ -226,55 +225,55 @@
                     </div>
                 </details>
 
-                <details {{ 'open' if c.get('live_html_gen_enabled') or c.get('assembly_mode_enabled') }} style="margin-top:12px">
-                    <summary style="cursor:pointer;font-weight:600;font-size:13px">
+                <details {{ 'open' if c.get('live_html_gen_enabled') or c.get('assembly_mode_enabled') }} class="mt-md">
+                    <summary style="font-weight:600;font-size:13px">
                         HTML-Modi + Anti-FP Feintuning
-                        {% if c.get('live_html_gen_enabled') %}<span class="badge badge-running" style="margin-left:6px">Live-Gen ON</span>{% endif %}
-                        {% if c.get('assembly_mode_enabled') %}<span class="badge badge-running" style="margin-left:6px">Assembly ON</span>{% endif %}
+                        {% if c.get('live_html_gen_enabled') %}<span class="badge badge-running">Live-Gen ON</span>{% endif %}
+                        {% if c.get('assembly_mode_enabled') %}<span class="badge badge-running">Assembly ON</span>{% endif %}
                     </summary>
-                    <div style="padding:10px 0 4px 0;font-size:12px;color:var(--fg2);margin-bottom:6px">
+                    <div class="form-help mb-sm" style="padding:10px 0 4px 0">
                         <strong>Standard:</strong> Kampagne wählt pro Send ein Template
                         aus dem vorhandenen HTML-Pool (siehe Config → freshness_html_count).<br>
                         <strong>Live HTML Gen:</strong> pro Send erzeugt die
                         htmlgen-Engine live ein frisches Template (mit Macros wie
                         <code>{Satz1}</code>, <code>{Ende}</code>, <code>{Footer1}</code>
                         die dann normal aufgelöst werden). Kein Pool nötig,
-                        maximale Variation pro Empfänger, ~5ms overhead pro Send.<br>
+                        maximale Variation pro Empfänger, ~5ms Overhead pro Send.<br>
                         <strong>Assembly:</strong> Snippet-Pool-basiert
-                        (<a href="/snippets" style="color:var(--accent)">/snippets</a>) —
-                        alternative wenn du eigene HTML-Fragmente pro Slot pflegen willst.<br>
+                        (<a href="/snippets">/snippets</a>) —
+                        Alternative wenn du eigene HTML-Fragmente pro Slot pflegen willst.<br>
                         Priorität: Live-Gen &gt; Assembly &gt; Pool.
                     </div>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px">
-                        <input type="checkbox" name="live_html_gen_enabled" value="1" style="width:auto"
+                    <label class="flex items-center gap-sm mb-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
+                        <input type="checkbox" name="live_html_gen_enabled" value="1"
                                {{ 'checked' if c.get('live_html_gen_enabled') }}>
                         <span><strong>Live HTML Gen</strong> — pro Send frisch aus htmlgen (empfohlen)</span>
                     </label>
 
                     <div class="grid-2" style="margin:6px 0 6px 26px;padding:8px;background:var(--bg);border-radius:var(--radius)">
                         <div>
-                            <label style="font-size:12px">Primary-Farbe (Brand)</label>
-                            <div style="display:flex;gap:4px;align-items:center">
+                            <label class="text-sm">Primary-Farbe (Brand)</label>
+                            <div class="flex items-center gap-xs">
                                 <input type="color" value="{{ c.get('live_primary_color') or '#005eb8' }}"
                                        style="width:40px;height:32px;padding:2px;cursor:pointer"
                                        oninput="this.nextElementSibling.value=this.value">
                                 <input name="live_primary_color" value="{{ c.get('live_primary_color') or '' }}"
-                                       placeholder="leer = random aus Pool"
-                                       style="flex:1;font-family:monospace;font-size:12px">
+                                       placeholder="leer = zufällig aus Pool"
+                                       class="flex-1 mono text-sm">
                             </div>
                         </div>
                         <div>
-                            <label style="font-size:12px">Accent-Farbe (Warnungen/Fristen)</label>
-                            <div style="display:flex;gap:4px;align-items:center">
+                            <label class="text-sm">Accent-Farbe (Warnungen/Fristen)</label>
+                            <div class="flex items-center gap-xs">
                                 <input type="color" value="{{ c.get('live_accent_color') or '#c0392b' }}"
                                        style="width:40px;height:32px;padding:2px;cursor:pointer"
                                        oninput="this.nextElementSibling.value=this.value">
                                 <input name="live_accent_color" value="{{ c.get('live_accent_color') or '' }}"
-                                       placeholder="leer = random aus Pool"
-                                       style="flex:1;font-family:monospace;font-size:12px">
+                                       placeholder="leer = zufällig aus Pool"
+                                       class="flex-1 mono text-sm">
                             </div>
                         </div>
-                        <div class="form-help" style="grid-column:1/-1;font-size:11px;margin:0">
+                        <div class="form-help text-xs" style="grid-column:1/-1;margin:0">
                             Leer = htmlgen wählt pro Mail eine Farbe aus dem
                             Standard-Pool (4 Blau-Töne für primary, 3 Rot-Töne für
                             accent — konfiguriert in <code>htmlgen/config.yaml</code>).
@@ -283,14 +282,14 @@
                         </div>
                     </div>
 
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px">
-                        <input type="checkbox" name="htmlgen_extra_randomize" value="1" style="width:auto"
+                    <label class="flex items-center gap-sm mt-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
+                        <input type="checkbox" name="htmlgen_extra_randomize" value="1"
                                {{ 'checked' if c.get('htmlgen_extra_randomize') }}>
-                        <span><strong>Extra-Randomize</strong> — struktur-shuffle pro Send
+                        <span><strong>Extra-Randomize</strong> — Struktur-Shuffle pro Send
                         (nur mit Live-Gen aktiv)</span>
                     </label>
-                    <div class="form-help" style="margin:0 0 6px 26px;font-size:11px">
-                        Pro Send zusätzlich random:<br>
+                    <div class="form-help mb-sm text-xs" style="margin-left:26px">
+                        Pro Send zusätzlich zufällig:<br>
                         &bull; <strong>15%</strong> Referenz-Block komplett raus<br>
                         &bull; <strong>15%</strong> Hinweis-Block komplett raus<br>
                         &bull; <strong>20%</strong> Footer2 leer (nur Footer1 sichtbar)<br>
@@ -299,12 +298,12 @@
                         macht's Sinn die Raten irgendwann fest zu verankern.
                     </div>
 
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                        <input type="checkbox" name="assembly_mode_enabled" value="1" style="width:auto"
+                    <label class="flex items-center gap-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
+                        <input type="checkbox" name="assembly_mode_enabled" value="1"
                                {{ 'checked' if c.get('assembly_mode_enabled') }}>
                         <span>Snippet Assembly (nur wenn Live-Gen aus)</span>
                     </label>
-                    <div class="grid-2" style="margin-top:10px">
+                    <div class="grid-2 mt-md">
                         <div>
                             <label>Anti-FP Pass-Through Rate</label>
                             <input name="antifp_passthrough_rate" type="number" step="0.01" min="0" max="1"
@@ -318,60 +317,60 @@
                             <div class="form-help">Anteil mit nur subtilen Transforms (kein Tag-Swap, keine Class-Inject). Default 0.10 = 10%.</div>
                         </div>
                     </div>
-                    <div class="form-help" style="margin-top:6px">
+                    <div class="form-help mt-sm">
                         Rest der Mails bekommt volle Anti-FP-Behandlung.
                         Verteilung natürlich: manche Mails "sauber", andere "leicht verändert",
                         die meisten "durchgeschüttelt".
                     </div>
                 </details>
 
-                <div style="margin-top:12px"><button class="btn btn-primary btn-sm">Save</button></div>
+                <div class="mt-md"><button class="btn btn-primary btn-sm">Speichern</button></div>
             </form>
         </div>
         <div id="c-actions-{{ c.id }}" class="tab-content">
-            <h3 style="font-size:14px;margin-bottom:8px">Controls</h3>
-            <div class="btn-group" style="flex-wrap:wrap;margin-bottom:12px">
+            <h3 class="mb-sm" style="font-size:14px">Steuerung</h3>
+            <div class="btn-group mb-md">
                 {% if not c.running %}
                 <form method="post" action="/campaigns/{{ c.id }}/start" style="display:inline">
-                    <button class="btn btn-success btn-sm">&#9654; Start</button>
+                    <button class="btn btn-success btn-sm">&#9654; Starten</button>
                 </form>
                 {% else %}
                 <form method="post" action="/campaigns/{{ c.id }}/stop" style="display:inline">
-                    <button class="btn btn-danger btn-sm">&#10074;&#10074; Pause</button>
+                    <button class="btn btn-danger btn-sm">&#10074;&#10074; Pausieren</button>
                 </form>
                 {% endif %}
-                <form method="post" action="/campaigns/{{ c.id }}/reset" onsubmit="return confirm('Reset all leads and start from scratch?')" style="display:inline">
-                    <button class="btn btn-secondary btn-sm">Restart from Beginning</button>
+                <form method="post" action="/campaigns/{{ c.id }}/reset" onsubmit="return confirm('Alle Leads zurücksetzen und von vorn beginnen?')" style="display:inline">
+                    <button class="btn btn-secondary btn-sm">Von Beginn neu starten</button>
                 </form>
                 <form method="post" action="/campaigns/{{ c.id }}/resend-failed" style="display:inline">
-                    <button class="btn btn-secondary btn-sm">Re-Send Failed</button>
+                    <button class="btn btn-secondary btn-sm">Fehlgeschlagene neu senden</button>
                 </form>
-                <form method="post" action="/campaigns/{{ c.id }}/delete" onsubmit="return confirm('Delete campaign?')" style="display:inline">
-                    <button class="btn btn-danger btn-sm">Delete</button>
+                <form method="post" action="/campaigns/{{ c.id }}/delete" onsubmit="return confirm('Kampagne löschen?')" style="display:inline">
+                    <button class="btn btn-danger btn-sm">Löschen</button>
                 </form>
             </div>
-            <div class="form-help" style="margin-bottom:16px">
-                Start resumes from where it left off. Failed mails are auto-retried by default (disable in <a href="/config" style="color:var(--accent)">Config</a>).
+            <div class="form-help mb-lg">
+                Starten setzt dort fort, wo pausiert wurde. Fehlgeschlagene Mails werden standardmäßig automatisch erneut versucht (deaktivieren in <a href="/config">Config</a>).
             </div>
 
-            <h3 style="font-size:14px;margin-bottom:8px">Pre-Flight Checks</h3>
-            <div class="btn-group" style="flex-wrap:wrap;margin-bottom:8px">
+            <h3 class="mb-sm" style="font-size:14px">Pre-Flight-Prüfungen</h3>
+            <div class="btn-group mb-sm">
                 <button class="btn btn-secondary btn-sm"
                         hx-post="/campaigns/{{ c.id }}/preflight"
                         hx-target="#preflight-{{ c.id }}"
-                        hx-swap="innerHTML">Full Pre-Flight</button>
+                        hx-swap="innerHTML">Vollständiger Pre-Flight</button>
                 <button class="btn btn-secondary btn-sm"
                         hx-post="/campaigns/{{ c.id }}/test-send"
                         hx-target="#preflight-{{ c.id }}"
-                        hx-swap="innerHTML">Send Test</button>
+                        hx-swap="innerHTML">Test senden</button>
                 <button class="btn btn-secondary btn-sm"
                         hx-post="/campaigns/{{ c.id }}/check-proxy"
                         hx-target="#preflight-{{ c.id }}"
-                        hx-swap="innerHTML">Check Proxy</button>
+                        hx-swap="innerHTML">Proxy prüfen</button>
                 <button class="btn btn-secondary btn-sm"
                         hx-post="/campaigns/{{ c.id }}/spam-check"
                         hx-target="#preflight-{{ c.id }}"
-                        hx-swap="innerHTML">Spam Score</button>
+                        hx-swap="innerHTML">Spam-Score</button>
             </div>
             <div id="preflight-{{ c.id }}"></div>
         </div>
@@ -379,42 +378,42 @@
 </details>
 {% endfor %}
 {% else %}
-<div class="card"><div class="empty-state"><div class="icon">&#9654;</div><p>No campaigns. Create one below.</p></div></div>
+<div class="card"><div class="empty-state"><div class="icon">&#9654;</div><p>Keine Kampagnen. Erstelle unten eine neue.</p></div></div>
 {% endif %}
 
 <details {{ 'open' if not campaigns }}>
-    <summary>Create Campaign</summary>
-    <div class="details-body" style="padding-top:16px">
+    <summary>Kampagne erstellen</summary>
+    <div class="details-body">
         <form method="post" action="/campaigns/add">
             <div class="grid-2">
                 <div>
                     <label>Name</label><input name="name" placeholder="April Outreach" required>
-                    <label>SMTP List</label>
+                    <label>SMTP-Liste</label>
                     <select name="smtp_list_id">
                         <option value="0">—</option>
                         {% for sl in smtp_lists %}<option value="{{ sl.id }}">{{ sl.name }} ({{ sl.count }})</option>{% endfor %}
                     </select>
                 </div>
                 <div>
-                    <label>Lead List (regular)</label>
+                    <label>Lead-Liste (regulär)</label>
                     <select name="lead_list_id">
-                        <option value="0">— Or use Pool below —</option>
+                        <option value="0">— Oder Pool unten verwenden —</option>
                         {% for ll in lead_lists %}<option value="{{ ll.id }}">{{ ll.name }} ({{ "{:,}".format(ll.count) }})</option>{% endfor %}
                     </select>
 
-                    <div class="divider" style="margin:10px 0"></div>
+                    <div class="divider"></div>
 
-                    <label>Lead Pool (takes N from pool)</label>
+                    <label>Lead-Pool (nimmt N aus Pool)</label>
                     <select name="pool_id">
-                        <option value="0">— No pool —</option>
-                        {% for p in pools %}<option value="{{ p.id }}">{{ p.name }} ({{ "{:,}".format(p.stats.pending) }} available / {{ "{:,}".format(p.stats.total) }} total)</option>{% endfor %}
+                        <option value="0">— Kein Pool —</option>
+                        {% for p in pools %}<option value="{{ p.id }}">{{ p.name }} ({{ "{:,}".format(p.stats.pending) }} verfügbar / {{ "{:,}".format(p.stats.total) }} gesamt)</option>{% endfor %}
                     </select>
-                    <label>How many leads from pool?</label>
+                    <label>Wieviele Leads aus Pool?</label>
                     <input name="pool_count" type="number" value="10000" min="1">
-                    <div class="form-help">Leads are reserved from pool and never deleted. Use Lead List OR Pool, not both.</div>
+                    <div class="form-help">Leads werden aus dem Pool reserviert und nie gelöscht. Entweder Lead-Liste ODER Pool, nicht beides.</div>
                 </div>
             </div>
-            <div style="margin-top:16px"><button class="btn btn-primary">Create Campaign</button></div>
+            <div class="mt-md"><button class="btn btn-primary">Kampagne erstellen</button></div>
         </form>
     </div>
 </details>

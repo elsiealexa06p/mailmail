@@ -1,118 +1,130 @@
 {% extends "base.html" %}
-{% block title %} — HTML Exporter{% endblock %}
+{% block title %} — HTML-Exporter{% endblock %}
 {% block content %}
-<div class="page-header"><h1>HTML Exporter</h1></div>
+<div class="page-header"><h1>HTML-Exporter</h1></div>
 
-<div class="grid-2" style="align-items:start">
+<div class="grid-2 items-start">
     <!-- Generate -->
     <div class="card">
-        <div class="card-header"><h3>Generate Export</h3></div>
+        <div class="card-header"><h3>Export erzeugen</h3></div>
         {% if not templates %}
         <div class="alert alert-warning">
-            No templates saved. Create some in the
-            <a href="/templates" style="color:var(--accent)">HTML Editor</a> first.
+            Noch keine Templates gespeichert. Lege welche im
+            <a href="/templates">HTML-Editor</a> an.
         </div>
         {% else %}
         <form hx-post="/exporter/generate" hx-target="#gen-result" hx-swap="innerHTML">
             <label>Name (optional)</label>
             <input name="name" placeholder="z.B. FirmaX 2000er Pack">
 
-            <label style="margin-top:8px">Templates (multi-select, round-robin)</label>
-            <div style="border:1px solid var(--border-light);border-radius:var(--radius);padding:8px;max-height:220px;overflow:auto;background:var(--bg)">
+            <label class="mt-sm">Templates (Mehrfachauswahl, Round-Robin)</label>
+            <div class="section-body" style="max-height:220px;overflow:auto;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius);padding:8px">
                 {% for t in templates %}
-                <label style="display:flex;align-items:center;gap:6px;padding:3px 0;font-weight:400;cursor:pointer;margin:0">
-                    <input type="checkbox" name="template_ids" value="{{ t.id }}" style="margin:0;width:auto">
+                <label class="flex items-center gap-xs" style="font-weight:400;cursor:pointer;margin:3px 0;padding:0;text-transform:none;letter-spacing:0">
+                    <input type="checkbox" name="template_ids" value="{{ t.id }}" class="shrink" style="margin:0;width:auto">
                     <span>{{ t.name }}</span>
-                    <span style="font-size:11px;color:var(--fg2)">
-                        {% if t.file_count > 0 %}{{ t.file_count }} variant files{% else %}1 inline{% endif %}
+                    <span class="muted text-xs">
+                        {% if t.file_count > 0 %}{{ t.file_count }} Varianten-Dateien{% else %}1 inline{% endif %}
                     </span>
                 </label>
                 {% endfor %}
             </div>
 
-            <div class="form-row" style="margin-top:8px">
+            <div class="form-row mt-sm">
                 <div>
-                    <label>Total HTMLs to generate</label>
+                    <label>Anzahl HTMLs insgesamt</label>
                     <input name="total" type="number" value="2000" min="1" max="50000">
                 </div>
                 <div>
-                    <label>Logo Mode</label>
+                    <label>Logo-Modus</label>
                     <select name="logo_mode">
-                        <optgroup label="External Mailer Code">
-                            <option value="code:default" selected>Default (CID placeholder)</option>
+                        <optgroup label="Externer Mailer-Code">
+                            <option value="code:default" selected>Standard (CID-Platzhalter)</option>
                             {% for c in logo_codes %}
                             <option value="code:{{ c.id }}">{{ c.name }}</option>
                             {% endfor %}
                         </optgroup>
-                        <option value="cloudinary">Cloudinary URL (random per mail) — {{ cloudinary_count }} URLs</option>
-                        <option value="text">Text Logo</option>
+                        <option value="cloudinary">Cloudinary-URL (zufällig pro Mail) — {{ cloudinary_count }} URLs</option>
+                        <option value="text">Text-Logo</option>
                     </select>
                 </div>
             </div>
 
-            <details style="margin-top:8px">
-                <summary style="cursor:pointer;font-size:13px;color:var(--fg2)">Override logo code for this run only</summary>
-                <textarea name="logo_code_override" rows="2" style="font-family:monospace;font-size:11px;margin-top:6px" placeholder="Leave empty to use the active preset / default"></textarea>
-            </details>
-
-            <details style="margin-top:8px">
-                <summary style="cursor:pointer;font-size:13px;color:var(--fg2)">Text logo overrides (only used if mode=text)</summary>
-                <div class="form-row" style="margin-top:6px">
-                    <div><label>Text</label><input name="logo_text" value="{{ cfg.logo_text or 'Logo' }}"></div>
-                    <div><label>Color</label><input name="logo_text_color" type="color" value="{{ cfg.logo_text_color or '#333333' }}"></div>
+            <details class="mt-sm">
+                <summary>Logo-Code nur für diesen Lauf überschreiben</summary>
+                <div class="details-body">
+                    <textarea name="logo_code_override" rows="2" class="mono text-xs" placeholder="Leer lassen, um aktives Preset / Standard zu verwenden"></textarea>
                 </div>
             </details>
 
-            <div style="margin-top:10px;padding:8px;border:1px solid var(--border-light);border-radius:var(--radius);background:var(--bg)">
-                <div style="font-size:12px;color:var(--fg2);margin-bottom:6px">Anti-Fingerprint Engine</div>
-                <label style="display:inline-flex;align-items:center;gap:4px;margin-right:14px;font-weight:400;cursor:pointer">
-                    <input type="checkbox" name="afp_classes" value="1" checked style="margin:0;width:auto">
-                    <span>Class & attribute randomization</span>
-                </label>
-                <label style="display:inline-flex;align-items:center;gap:4px;font-weight:400;cursor:pointer">
-                    <input type="checkbox" name="afp_advanced" value="1" checked style="margin:0;width:auto">
-                    <span>Advanced (structure variation: {{ cfg.structure_variation or 0.5 }})</span>
-                </label>
-                <div style="font-size:11px;color:var(--fg2);margin-top:4px">
-                    Structure-variation strength is configured globally in <a href="/config" style="color:var(--accent)">Config</a>.
+            <details class="mt-sm">
+                <summary>Text-Logo-Overrides (nur wenn Modus=text)</summary>
+                <div class="details-body">
+                    <div class="form-row">
+                        <div><label>Text</label><input name="logo_text" value="{{ cfg.logo_text or 'Logo' }}"></div>
+                        <div><label>Farbe</label><input name="logo_text_color" type="color" value="{{ cfg.logo_text_color or '#333333' }}"></div>
+                    </div>
+                </div>
+            </details>
+
+            <div class="section mt-md">
+                <div class="section-head">
+                    <div class="title">Anti-Fingerprint Engine</div>
+                </div>
+                <div class="section-body">
+                    <div class="flex flex-wrap gap-md items-center">
+                        <label class="flex items-center gap-xs" style="font-weight:400;cursor:pointer;margin:0;text-transform:none;letter-spacing:0">
+                            <input type="checkbox" name="afp_classes" value="1" checked class="shrink" style="margin:0;width:auto">
+                            <span>Klassen- &amp; Attribut-Randomisierung</span>
+                        </label>
+                        <label class="flex items-center gap-xs" style="font-weight:400;cursor:pointer;margin:0;text-transform:none;letter-spacing:0">
+                            <input type="checkbox" name="afp_advanced" value="1" checked class="shrink" style="margin:0;width:auto">
+                            <span>Erweitert (Strukturvariation: {{ cfg.structure_variation or 0.5 }})</span>
+                        </label>
+                    </div>
+                    <div class="form-help mt-xs">
+                        Stärke der Strukturvariation wird global unter <a href="/config">Config</a> konfiguriert.
+                    </div>
                 </div>
             </div>
 
-            <div style="margin-top:10px"><button class="btn btn-primary">Generate ZIP</button></div>
-            <div class="form-help" style="margin-top:6px">
-                Macros like <code>{Name}</code> and <code>{RedirectLink}</code> stay in the HTML — your external mailer substitutes them.
+            <div class="mt-md"><button class="btn btn-primary">ZIP erzeugen</button></div>
+            <div class="form-help mt-xs">
+                Makros wie <code>{Name}</code> und <code>{RedirectLink}</code> bleiben im HTML — dein externer Mailer ersetzt sie.
             </div>
         </form>
-        <div id="gen-result" style="margin-top:10px"></div>
+        <div id="gen-result" class="mt-md"></div>
         {% endif %}
     </div>
 
     <!-- Logo Code Presets -->
     <div class="card">
-        <div class="card-header"><h3>External Mailer Logo Code Presets</h3></div>
-        <div class="form-help" style="margin-bottom:8px">
-            Each saved preset shows up as its own option in the <em>Logo Mode</em> dropdown on the left.
-            <em>Default</em> is the built-in <code>Logo[==ORandImage,RndFileName,RndSize=3==].png</code> CID placeholder
-            and is always available.
+        <div class="card-header"><h3>Logo-Code-Presets (externer Mailer)</h3></div>
+        <div class="form-help mb-sm">
+            Jedes gespeicherte Preset erscheint als eigene Option im Dropdown <em>Logo-Modus</em> links.
+            <em>Standard</em> ist der eingebaute CID-Platzhalter
+            <code>Logo[==ORandImage,RndFileName,RndSize=3==].png</code>
+            und ist immer verfügbar.
         </div>
         {% if logo_codes %}
-        <table style="margin-bottom:10px">
+        <table class="mb-md">
             <thead><tr><th>Name</th><th>Snippet</th><th></th></tr></thead>
             <tbody>
             {% for c in logo_codes %}
             <tr>
                 <td style="font-weight:500">{{ c.name }}</td>
-                <td style="font-family:monospace;font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ c.code }}">{{ c.code }}</td>
-                <td style="white-space:nowrap">
-                    <details><summary class="btn btn-secondary btn-xs" style="display:inline-block">Edit</summary>
-                        <form method="post" action="/exporter/logo-code/{{ c.id }}/update" style="margin-top:6px">
-                            <input name="name" value="{{ c.name }}" style="margin-bottom:4px">
-                            <textarea name="code" rows="3" style="font-family:monospace;font-size:11px">{{ c.code }}</textarea>
-                            <button class="btn btn-primary btn-xs" style="margin-top:4px">Save</button>
+                <td class="mono text-xs text-truncate" style="max-width:280px" title="{{ c.code }}">{{ c.code }}</td>
+                <td class="text-nowrap">
+                    <details style="display:inline-block;background:transparent;border:0;margin:0;overflow:visible">
+                        <summary class="btn btn-secondary btn-xs" style="display:inline-flex;padding:3px 8px">Bearbeiten</summary>
+                        <form method="post" action="/exporter/logo-code/{{ c.id }}/update" class="mt-xs">
+                            <input name="name" value="{{ c.name }}" class="mb-xs">
+                            <textarea name="code" rows="3" class="mono text-xs">{{ c.code }}</textarea>
+                            <button class="btn btn-primary btn-xs mt-xs">Speichern</button>
                         </form>
                     </details>
-                    <form method="post" action="/exporter/logo-code/{{ c.id }}/delete" onsubmit="return confirm('Delete?')" style="display:inline">
-                        <button class="btn btn-danger btn-xs">Del</button>
+                    <form method="post" action="/exporter/logo-code/{{ c.id }}/delete" onsubmit="return confirm('Löschen?')" style="display:inline">
+                        <button class="btn btn-danger btn-xs">Löschen</button>
                     </form>
                 </td>
             </tr>
@@ -121,44 +133,44 @@
         </table>
         {% endif %}
         <form method="post" action="/exporter/logo-code/add">
-            <label>New preset name</label>
+            <label>Name des neuen Presets</label>
             <input name="name" placeholder="z.B. madcatmailer CID" required>
-            <label style="margin-top:6px">Snippet (replaces {Logo})</label>
-            <textarea name="code" rows="3" required style="font-family:monospace;font-size:11px">{{ default_logo_code }}</textarea>
-            <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Save Preset</button></div>
+            <label class="mt-xs">Snippet (ersetzt {Logo})</label>
+            <textarea name="code" rows="3" required class="mono text-xs">{{ default_logo_code }}</textarea>
+            <div class="mt-sm"><button class="btn btn-primary btn-sm">Preset speichern</button></div>
         </form>
     </div>
 </div>
 
 <!-- Jobs -->
 <div class="card">
-    <div class="card-header"><h3>Export Jobs <span class="count">{{ jobs|length }}</span></h3></div>
+    <div class="card-header"><h3>Export-Jobs <span class="count">{{ jobs|length }}</span></h3></div>
     {% if jobs %}
     <table>
-        <thead><tr><th>Name</th><th>Logo Mode</th><th>Progress</th><th>Status</th><th>Created</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Logo-Modus</th><th>Fortschritt</th><th>Status</th><th>Erstellt</th><th></th></tr></thead>
         <tbody>
         {% for j in jobs %}
         <tr>
             <td style="font-weight:500">{{ j.name or 'Export #' ~ j.id }}</td>
             <td><span class="badge badge-info">{{ j.logo_mode }}</span></td>
-            <td>{{ j.done_count }}/{{ j.total_count }}</td>
+            <td class="mono">{{ j.done_count }}/{{ j.total_count }}</td>
             <td>
-                {% if j.status == 'DONE' %}<span class="badge badge-running">Done</span>
-                {% elif j.status == 'RUNNING' %}<span class="badge badge-draft">Running</span>
+                {% if j.status == 'DONE' %}<span class="badge badge-running">Fertig</span>
+                {% elif j.status == 'RUNNING' %}<span class="badge badge-draft">Läuft</span>
                 {% else %}<span class="badge badge-failed">{{ j.status }}</span>{% endif %}
             </td>
-            <td style="font-size:11px;color:var(--fg2)">{{ j.created_at }}</td>
-            <td style="white-space:nowrap">
+            <td class="muted text-xs">{{ j.created_at }}</td>
+            <td class="text-nowrap">
                 {% if j.status == 'DONE' %}
-                <a href="/exporter/jobs/{{ j.id }}/download" class="btn btn-secondary btn-xs">Download</a>
+                <a href="/exporter/jobs/{{ j.id }}/download" class="btn btn-secondary btn-xs">Herunterladen</a>
                 {% elif j.status == 'RUNNING' %}
                 <span hx-get="/exporter/jobs/{{ j.id }}/status" hx-trigger="every 3s" hx-swap="innerHTML"></span>
                 {% endif %}
-                <form method="post" action="/exporter/jobs/{{ j.id }}/delete" style="display:inline" onsubmit="return confirm('Delete job + file?')">
-                    <button class="btn btn-danger btn-xs">Del</button>
+                <form method="post" action="/exporter/jobs/{{ j.id }}/delete" style="display:inline" onsubmit="return confirm('Job + Datei löschen?')">
+                    <button class="btn btn-danger btn-xs">Löschen</button>
                 </form>
                 {% if j.error_msg %}
-                <div style="font-size:11px;color:var(--red);margin-top:4px">{{ j.error_msg }}</div>
+                <div class="text-xs mt-xs" style="color:var(--red)">{{ j.error_msg }}</div>
                 {% endif %}
             </td>
         </tr>
@@ -166,7 +178,7 @@
         </tbody>
     </table>
     {% else %}
-    <div class="empty-state"><p>No export jobs yet.</p></div>
+    <div class="empty-state"><p>Noch keine Export-Jobs vorhanden.</p></div>
     {% endif %}
 </div>
 {% endblock %}

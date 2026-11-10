@@ -5,70 +5,70 @@
 
 {% if cfg.proxy_value %}
 <div class="alert alert-info">
-    Active: <strong>{{ cfg.proxy_mode }}</strong> — {{ cfg.proxy_value.splitlines()[0][:50] }}{{ '...' if cfg.proxy_value|length > 50 }}
-    {% if cfg.proxy_rotate_every %} (rotate every {{ cfg.proxy_rotate_every }}){% endif %}
+    Aktiv: <strong>{{ cfg.proxy_mode }}</strong> — {{ cfg.proxy_value.splitlines()[0][:50] }}{{ '...' if cfg.proxy_value|length > 50 }}
+    {% if cfg.proxy_rotate_every %} (Rotation alle {{ cfg.proxy_rotate_every }}){% endif %}
 </div>
 {% else %}
-<div class="alert alert-warning">No proxy active. Add a config and click "Activate".</div>
+<div class="alert alert-warning">Kein Proxy aktiv. Config hinzufügen und auf „Aktivieren“ klicken.</div>
 {% endif %}
 
 <div class="card">
-    <div class="card-header"><h3>Saved Configs <span class="count">{{ proxies|length }}</span></h3></div>
+    <div class="card-header"><h3>Gespeicherte Configs <span class="count">{{ proxies|length }}</span></h3></div>
     {% if proxies %}
     {% for p in proxies %}
     <details>
         <summary>
             <strong>{{ p.name }}</strong>
-            <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <span class="ml-auto flex gap-sm items-center">
                 <span class="badge badge-{{ 'running' if p.proxy_type == 'pool' else 'info' }}">{{ p.proxy_type }}</span>
-                <span style="font-size:12px;color:var(--fg2)">{{ p.value.splitlines()|length }} line(s)</span>
+                <span class="text-xs muted">{{ p.value.splitlines()|length }} Zeile(n)</span>
             </span>
         </summary>
-        <div class="details-body" style="padding-top:12px">
+        <div class="details-body">
             <form method="post" action="/proxies/{{ p.id }}/save">
                 <label>Name</label>
                 <input name="name" value="{{ p.name }}">
-                <label>Type</label>
+                <label>Typ</label>
                 <select name="proxy_type">
                     <option value="single" {{ 'selected' if p.proxy_type == 'single' }}>Single Proxy</option>
-                    <option value="pool" {{ 'selected' if p.proxy_type == 'pool' }}>Proxy Pool (rotate)</option>
+                    <option value="pool" {{ 'selected' if p.proxy_type == 'pool' }}>Proxy Pool (Rotation)</option>
                 </select>
-                <label>Proxy / Proxies (one per line)</label>
-                <textarea name="value" rows="4" style="font-family:monospace;font-size:12px">{{ p.value }}</textarea>
-                <label>Rotate Every N (pool only)</label>
+                <label>Proxy / Proxies (einer pro Zeile)</label>
+                <textarea name="value" rows="4" class="mono text-sm">{{ p.value }}</textarea>
+                <label>Rotation alle N (nur Pool)</label>
                 <input name="rotate_every" type="number" value="{{ p.rotate_every or 0 }}" min="0">
-                <div style="margin-top:12px">
-                    <button class="btn btn-primary btn-sm">Save</button>
+                <div class="mt-md">
+                    <button class="btn btn-primary btn-sm">Speichern</button>
                 </div>
             </form>
-            <div style="margin-top:8px" class="btn-group">
-                <form method="post" action="/proxies/{{ p.id }}/activate"><button class="btn btn-success btn-sm">Activate</button></form>
-                <form method="post" action="/proxies/{{ p.id }}/delete" onsubmit="return confirm('Delete?')"><button class="btn btn-danger btn-sm">Delete</button></form>
+            <div class="mt-sm btn-group">
+                <form method="post" action="/proxies/{{ p.id }}/activate"><button class="btn btn-success btn-sm">Aktivieren</button></form>
+                <form method="post" action="/proxies/{{ p.id }}/delete" onsubmit="return confirm('Löschen?')"><button class="btn btn-danger btn-sm">Löschen</button></form>
             </div>
         </div>
     </details>
     {% endfor %}
     {% else %}
-    <div class="empty-state"><p>No proxy configs. Add one below.</p></div>
+    <div class="empty-state"><p>Keine Proxy-Configs vorhanden. Füge unten eine hinzu.</p></div>
     {% endif %}
 </div>
 
 <details {{ 'open' if not proxies }}>
-    <summary>Add Proxy Config</summary>
-    <div class="details-body" style="padding-top:12px">
+    <summary>Proxy-Config hinzufügen</summary>
+    <div class="details-body">
         <form method="post" action="/proxies/add">
             <label>Name</label>
-            <input name="name" placeholder="e.g. Residential DE" required>
-            <label>Type</label>
+            <input name="name" placeholder="z. B. Residential DE" required>
+            <label>Typ</label>
             <select name="proxy_type">
                 <option value="single">Single Proxy</option>
-                <option value="pool">Proxy Pool (rotate)</option>
+                <option value="pool">Proxy Pool (Rotation)</option>
             </select>
-            <label>Proxy / Proxies (one per line for pool)</label>
-            <textarea name="value" rows="4" placeholder="socks5://ip:port:user:pass" style="font-family:monospace;font-size:12px" required></textarea>
-            <label>Rotate Every N (pool only)</label>
+            <label>Proxy / Proxies (einer pro Zeile für Pool)</label>
+            <textarea name="value" rows="4" placeholder="socks5://ip:port:user:pass" class="mono text-sm" required></textarea>
+            <label>Rotation alle N (nur Pool)</label>
             <input name="rotate_every" type="number" value="0" min="0">
-            <div style="margin-top:12px"><button class="btn btn-primary">Save Config</button></div>
+            <div class="mt-md"><button class="btn btn-primary">Config speichern</button></div>
         </form>
     </div>
 </details>

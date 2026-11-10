@@ -1,54 +1,54 @@
 {% extends "base.html" %}
 {% block title %} — Bounces{% endblock %}
 {% block content %}
-<div class="page-header"><h1>Bounce Analytics</h1></div>
+<div class="page-header"><h1>Bounce-Analyse</h1></div>
 
 <div class="card">
-    <h3>Filters</h3>
+    <h3>Filter</h3>
     <form hx-post="/bounces/filter" hx-target="#bounce-results" hx-swap="innerHTML">
         <div class="grid-4">
             <div>
-                <label>Campaign</label>
+                <label>Kampagne</label>
                 <select name="campaign_id">
-                    <option value="0">All Campaigns</option>
+                    <option value="0">Alle Kampagnen</option>
                     {% for c in campaigns %}
                     <option value="{{ c.campaign_id }}">{{ c.name or ('#' ~ c.campaign_id) }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label>Error Type</label>
+                <label>Fehlertyp</label>
                 <select name="error_type">
-                    <option value="">All Types</option>
-                    <option value="spam_reject">Spam Reject</option>
-                    <option value="mailbox_not_found">Mailbox Not Found</option>
-                    <option value="permanent_reject">Permanent Reject</option>
-                    <option value="rate_limit">Rate Limit</option>
+                    <option value="">Alle Typen</option>
+                    <option value="spam_reject">Spam-Ablehnung</option>
+                    <option value="mailbox_not_found">Mailbox nicht gefunden</option>
+                    <option value="permanent_reject">Dauerhafte Ablehnung</option>
+                    <option value="rate_limit">Rate-Limit</option>
                     <option value="timeout">Timeout</option>
-                    <option value="connection">Connection</option>
-                    <option value="auth_fail">Auth Fail</option>
-                    <option value="other">Other</option>
+                    <option value="connection">Verbindung</option>
+                    <option value="auth_fail">Auth-Fehler</option>
+                    <option value="other">Sonstige</option>
                 </select>
             </div>
             <div>
                 <label>ISP / Domain</label>
-                <input name="domain" placeholder="e.g. gmail.com">
+                <input name="domain" placeholder="z.B. gmail.com">
             </div>
             <div>
-                <label>MIME Profile</label>
+                <label>MIME-Profil</label>
                 <select name="profile">
-                    <option value="">All Profiles</option>
+                    <option value="">Alle Profile</option>
                     <option value="default">Default</option>
                     <option value="outlook_desktop">Outlook</option>
                     <option value="apple_mail_mac">Apple Mac</option>
                     <option value="apple_mail_iphone">iPhone</option>
                     <option value="thunderbird">Thunderbird</option>
-                    <option value="rotated">Rotated</option>
+                    <option value="rotated">Rotiert</option>
                 </select>
             </div>
         </div>
-        <div style="margin-top:10px">
-            <button class="btn btn-primary btn-sm">Apply Filters</button>
+        <div class="mt-sm">
+            <button class="btn btn-primary btn-sm">Filter anwenden</button>
         </div>
     </form>
 </div>
@@ -57,53 +57,53 @@
      hx-post="/bounces/filter"
      hx-trigger="load"
      hx-swap="innerHTML">
-    <p style="color:var(--fg2)">Loading...</p>
+    <p class="muted">Lädt...</p>
 </div>
 
-<div class="card" style="margin-top:16px">
-    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-        <h3>Suppression List <span class="count">{{ suppress_count }}</span></h3>
+<div class="card mt-lg">
+    <div class="card-header">
+        <h3>Sperrliste <span class="count">{{ suppress_count }}</span></h3>
         <div class="btn-group">
             {% if suppress_count > 0 %}
-            <a href="/bounces/suppress/export" class="btn btn-secondary btn-sm">Export .txt</a>
-            <form method="post" action="/bounces/suppress/clear" onsubmit="return confirm('Clear the entire suppression list? Addresses will be mailable again.')" style="display:inline">
-                <button class="btn btn-danger btn-sm">Clear All</button>
+            <a href="/bounces/suppress/export" class="btn btn-secondary btn-sm">Exportieren (.txt)</a>
+            <form method="post" action="/bounces/suppress/clear" onsubmit="return confirm('Gesamte Sperrliste leeren? Adressen sind danach wieder zustellbar.')" class="flex">
+                <button class="btn btn-danger btn-sm">Alle löschen</button>
             </form>
             {% endif %}
         </div>
     </div>
-    <div class="form-help" style="margin-bottom:10px">
-        Hard-bounced addresses (dead mailbox / permanent reject) are added here automatically and
-        are never mailed again — in this or any future campaign. Soft rejects (spam/rate-limit) are
-        <em>not</em> suppressed; they stay retryable. Toggle the behaviour under
-        <a href="/config" style="color:var(--accent)">Config &rarr; auto-suppress</a>.
+    <div class="form-help mb-sm">
+        Hart gebouncte Adressen (tote Mailbox / dauerhafte Ablehnung) werden hier automatisch aufgenommen
+        und nie wieder angeschrieben — weder in dieser noch in zukünftigen Kampagnen. Soft-Rejects
+        (Spam / Rate-Limit) werden <em>nicht</em> gesperrt, sie bleiben wiederholbar. Das Verhalten lässt
+        sich unter <a href="/config">Config &rarr; auto-suppress</a> umschalten.
     </div>
 
-    <form method="post" action="/bounces/suppress/add" style="margin-bottom:12px">
-        <label>Add addresses manually (one per line or comma-separated)</label>
+    <form method="post" action="/bounces/suppress/add" class="mb-md">
+        <label>Adressen manuell hinzufügen (eine pro Zeile oder komma-getrennt)</label>
         <textarea name="emails" rows="3" placeholder="dead@example.com&#10;invalid@domain.de"
-                  style="font-family:monospace;font-size:12px"></textarea>
-        <div style="margin-top:8px"><button class="btn btn-primary btn-sm">Add to Suppression List</button></div>
+                  class="mono text-sm"></textarea>
+        <div class="mt-sm"><button class="btn btn-primary btn-sm">Zur Sperrliste hinzufügen</button></div>
     </form>
 
     {% if suppressions %}
     <div style="max-height:360px;overflow-y:auto">
-    <table style="font-size:11px">
-        <thead><tr><th>Email</th><th>Reason</th><th>Code</th><th>Source</th><th>Added</th><th></th></tr></thead>
+    <table class="text-xs">
+        <thead><tr><th>E-Mail</th><th>Grund</th><th>Code</th><th>Quelle</th><th>Hinzugefügt</th><th></th></tr></thead>
         <tbody>
         {% for s in suppressions %}
         <tr>
-            <td style="font-family:monospace">{{ s.email }}</td>
-            <td><span class="badge badge-failed" style="font-size:10px">{{ s.reason or '—' }}</span></td>
+            <td class="mono">{{ s.email }}</td>
+            <td><span class="badge badge-failed">{{ s.reason or '—' }}</span></td>
             <td>{{ s.bounce_code or '' }}</td>
-            <td style="color:var(--fg2)">{{ s.source }}</td>
-            <td style="white-space:nowrap;color:var(--fg2)">{{ s.created_at[:16] }}</td>
+            <td class="muted">{{ s.source }}</td>
+            <td class="text-nowrap muted">{{ s.created_at[:16] }}</td>
             <td>
                 <button class="btn btn-danger btn-xs"
                         hx-post="/bounces/suppress/{{ s.id }}/delete"
-                        hx-confirm="Remove {{ s.email }} from suppression list?"
+                        hx-confirm="{{ s.email }} aus der Sperrliste entfernen?"
                         hx-swap="none"
-                        hx-on::after-request="if(event.detail.successful){this.closest('tr').remove()}">Del</button>
+                        hx-on::after-request="if(event.detail.successful){this.closest('tr').remove()}">Löschen</button>
             </td>
         </tr>
         {% endfor %}
@@ -111,10 +111,10 @@
     </table>
     </div>
     {% if suppress_count > suppressions|length %}
-    <p style="font-size:12px;color:var(--fg2);margin-top:6px">Showing {{ suppressions|length }} of {{ suppress_count }}. Export for the full list.</p>
+    <p class="text-sm muted mt-xs">Zeige {{ suppressions|length }} von {{ suppress_count }}. Für die vollständige Liste exportieren.</p>
     {% endif %}
     {% else %}
-    <div class="empty-state"><p>No suppressed addresses yet.</p></div>
+    <div class="empty-state"><p>Noch keine gesperrten Adressen.</p></div>
     {% endif %}
 </div>
 {% endblock %}

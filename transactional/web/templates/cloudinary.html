@@ -1,131 +1,133 @@
 {% extends "base.html" %}
 {% block title %} — Cloudinary{% endblock %}
 {% block content %}
-<div class="page-header"><h1>Cloudinary Logo Uploader</h1></div>
+<div class="page-header"><h1>Cloudinary Logo-Upload</h1></div>
 
-<div class="grid-2" style="align-items:start">
+<div class="grid-2 items-start">
     <div class="card">
-        <div class="card-header"><h3>Credentials</h3></div>
+        <div class="card-header"><h3>Zugangsdaten</h3></div>
         <form method="post" action="/cloudinary/config">
-            <label>Cloud Name</label>
+            <label>Cloud-Name</label>
             <input name="cloud_name" value="{{ cfg.cloud_name }}" placeholder="my-cloud">
-            <label>API Key</label>
+            <label>API-Key</label>
             <input name="api_key" value="{{ cfg.api_key }}" placeholder="123456789012345">
-            <label>API Secret</label>
+            <label>API-Secret</label>
             <input name="api_secret" type="password" value="{{ cfg.api_secret }}"
                    placeholder="••••••••••••••••••••">
-            <div style="margin-top:10px"><button class="btn btn-primary btn-sm">Save</button></div>
-            <div class="form-help" style="margin-top:6px">
-                Shared with the rest of the panel — same fields as
-                <a href="/config" style="color:var(--accent)">Config</a> /
-                <a href="/logos" style="color:var(--accent)">Logos</a>.
+            <div class="mt-sm"><button class="btn btn-primary btn-sm">Speichern</button></div>
+            <div class="form-help mt-xs">
+                Gemeinsam mit dem Rest des Panels — gleiche Felder wie unter
+                <a href="/config">Config</a> /
+                <a href="/logos">Logos</a>.
             </div>
         </form>
     </div>
 
     <div class="card">
-        <div class="card-header"><h3>Upload Logo (via Proxy)</h3></div>
+        <div class="card-header"><h3>Logo hochladen (über Proxy)</h3></div>
         {% if not (cfg.cloud_name and cfg.api_key and cfg.api_secret) %}
-        <div class="alert alert-warning">Save credentials first.</div>
+        <div class="alert alert-warning">Bitte zuerst Zugangsdaten speichern.</div>
         {% endif %}
         {% if not proxies %}
         <div class="alert alert-danger">
-            No proxy configs yet — every request goes through a proxy, so create at least one
-            on the <a href="/proxies" style="color:var(--accent)">Proxies</a> page first.
+            Noch keine Proxy-Konfigurationen — jeder Request läuft über einen Proxy, also
+            lege zuerst mindestens einen auf der Seite
+            <a href="/proxies">Proxies</a> an.
         </div>
         {% endif %}
         <form hx-post="/cloudinary/upload" hx-target="#up-result" hx-swap="innerHTML"
               hx-encoding="multipart/form-data">
-            <label>Logo file (PNG/JPG/WEBP)</label>
+            <label>Logo-Datei (PNG/JPG/WEBP)</label>
             <input type="file" name="file" accept="image/*" required>
 
-            <div class="form-row" style="margin-top:8px">
+            <div class="form-row mt-sm">
                 <div>
-                    <label>How many copies</label>
+                    <label>Anzahl Kopien</label>
                     <input name="count" type="number" value="10" min="1" max="200">
                 </div>
                 <div>
-                    <label>Base name</label>
+                    <label>Basisname</label>
                     <input name="base_name" value="Logo" placeholder="Logo">
                 </div>
             </div>
             <div class="form-help">
-                count &gt; 1 → public IDs become <code>Logo1_xxx</code>, <code>Logo2_xxx</code>, … so each URL is unique.
+                Anzahl &gt; 1 → Public-IDs werden zu <code>Logo1_xxx</code>, <code>Logo2_xxx</code>, … damit jede URL eindeutig ist.
             </div>
 
-            <label style="margin-top:8px">Folder (optional)</label>
+            <label class="mt-sm">Ordner (optional)</label>
             <input name="folder" value="" placeholder="logos/2026">
 
-            <label style="margin-top:8px">Proxy (required)</label>
+            <label class="mt-sm">Proxy (Pflicht)</label>
             <select name="proxy_id" required {% if not proxies %}disabled{% endif %}>
-                <option value="">— Pick a proxy —</option>
+                <option value="">— Proxy wählen —</option>
                 {% for p in proxies %}
                 <option value="{{ p.id }}">{{ p.name }} ({{ p.proxy_type }})</option>
                 {% endfor %}
             </select>
             <div class="form-help">
-                All uploads route through this SOCKS5 proxy. Pools rotate one line per copy.
+                Alle Uploads laufen über diesen SOCKS5-Proxy. Pools rotieren eine Zeile pro Kopie.
             </div>
 
-            <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:8px">
+            <label class="flex items-center gap-xs mt-sm" style="font-weight:400;cursor:pointer">
                 <input type="checkbox" name="pixel_tweak" value="1" checked style="margin:0;width:auto">
-                <span>Per-upload pixel tweak (different file hash for each copy)</span>
+                <span>Pixel-Tweak pro Upload (jede Kopie bekommt einen anderen Datei-Hash)</span>
             </label>
             <div class="form-help">
-                Nudges one pixel by ±1 per copy — visually identical, but every URL
-                points to a byte-different file so perceptual-hash filters can't lump them together.
+                Verschiebt pro Kopie ein Pixel um ±1 — visuell identisch, aber jede URL
+                zeigt auf eine byteweise andere Datei, damit Perceptual-Hash-Filter sie nicht zusammenwerfen.
             </div>
 
-            <div style="margin-top:10px">
+            <div class="mt-sm">
                 <button class="btn btn-primary btn-sm" {% if not proxies %}disabled{% endif %}>
-                    Start Upload
+                    Upload starten
                 </button>
             </div>
         </form>
-        <div id="up-result" style="margin-top:10px"></div>
+        <div id="up-result" class="mt-sm"></div>
     </div>
 </div>
 
 {% if uploads %}
 <div class="card">
-    <div class="card-header"><h3>Upload Batches</h3></div>
+    <div class="card-header"><h3>Upload-Batches</h3></div>
     {% for u in uploads %}
-    <details {% if loop.first %}open{% endif %} style="margin-bottom:10px;border:1px solid var(--border-light);border-radius:var(--radius);background:var(--bg)">
-        <summary style="cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <details {% if loop.first %}open{% endif %}>
+        <summary class="flex justify-between items-center flex-wrap gap-sm">
             <span>
                 <strong>{{ u.base_public_id }}</strong>
-                <span style="color:var(--fg2);font-size:12px;margin-left:6px">
-                    {{ u.link_count }}/{{ u.count }} link(s)
-                    {% if u.folder %} · folder <code>{{ u.folder }}</code>{% endif %}
-                    {% if u.pixel_tweak %} · pixel-tweaked{% endif %}
-                    {% if u.proxy_name %} · via <code>{{ u.proxy_name }}</code>{% endif %}
+                <span class="muted text-sm" style="margin-left:6px">
+                    {{ u.link_count }}/{{ u.count }} Link(s)
+                    {% if u.folder %} · Ordner <code>{{ u.folder }}</code>{% endif %}
+                    {% if u.pixel_tweak %} · Pixel-Tweak{% endif %}
+                    {% if u.proxy_name %} · über <code>{{ u.proxy_name }}</code>{% endif %}
                 </span>
             </span>
-            <span style="display:flex;gap:6px">
-                <a href="/cloudinary/upload/{{ u.id }}/export.txt" class="btn btn-secondary btn-xs">Download .txt</a>
+            <span class="flex gap-xs">
+                <a href="/cloudinary/upload/{{ u.id }}/export.txt" class="btn btn-secondary btn-xs">Als .txt herunterladen</a>
                 <form method="post" action="/cloudinary/upload/{{ u.id }}/delete" style="display:inline"
-                      onsubmit="return confirm('Delete batch (local record only — files stay on Cloudinary)?')">
-                    <button class="btn btn-danger btn-xs">Delete</button>
+                      onsubmit="return confirm('Batch löschen (nur lokaler Eintrag — Dateien bleiben auf Cloudinary)?')">
+                    <button class="btn btn-danger btn-xs">Löschen</button>
                 </form>
             </span>
         </summary>
-        <div style="padding:10px 12px">
+        <div class="details-body">
             {% if u.links %}
-            <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+            <div class="flex gap-xs flex-wrap mb-xs">
                 <button type="button" class="btn btn-success btn-xs"
-                        onclick="(function(b){var t=b.parentElement.nextElementSibling;navigator.clipboard.writeText(t.value).then(function(){var o=b.textContent;b.textContent='Copied!';setTimeout(function(){b.textContent=o},1200)})})(this)">
-                    Copy all URLs
+                        onclick="(function(b){var t=b.parentElement.nextElementSibling;navigator.clipboard.writeText(t.value).then(function(){var o=b.textContent;b.textContent='Kopiert!';setTimeout(function(){b.textContent=o},1200)})})(this)">
+                    Alle URLs kopieren
                 </button>
-                <span style="font-size:12px;color:var(--fg2);align-self:center">
-                    {{ u.links|length }} URL{% if u.links|length != 1 %}s{% endif %} — one per line, ready to paste
+                <span class="text-sm muted" style="align-self:center">
+                    {{ u.links|length }} URL{% if u.links|length != 1 %}s{% endif %} — eine pro Zeile, direkt zum Einfügen
                 </span>
             </div>
             <textarea readonly rows="{{ [u.links|length, 12]|min }}"
-                      style="width:100%;font-family:monospace;font-size:12px;background:#fff"
+                      class="w-full mono text-sm"
+                      style="background:var(--bg2);color:var(--fg)"
                       onclick="this.select()">{% for l in u.links %}{{ l.secure_url }}
 {% endfor %}</textarea>
             {% else %}
-            <p style="font-size:12px;color:var(--fg2);margin:0">No links yet — upload may still be running or failed.</p>
+            <p class="text-sm muted" style="margin:0">Noch keine Links — Upload läuft eventuell noch oder ist fehlgeschlagen.</p>
             {% endif %}
         </div>
     </details>
