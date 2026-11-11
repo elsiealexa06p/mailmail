@@ -24,6 +24,15 @@
             {% else %}
             <small>Campaign Manager</small>
             {% endif %}
+            {# App-Switch: wenn der Host auf bulk*. endet, biete trans*. als Pendant an. #}
+            {% set host = request.url.hostname or '' %}
+            {% if host.startswith('bulk') and 'trans' not in host %}
+            <a class="app-switch" style="margin-top:8px"
+               href="//{{ host.replace('bulk', 'trans', 1) }}{{ request.url.path }}" rel="noopener"
+               title="Zum Transactional-Panel wechseln">
+                <span>Transactional</span><span>&rarr;</span>
+            </a>
+            {% endif %}
         </div>
 
         <div class="sidebar-section">Campaigns</div>

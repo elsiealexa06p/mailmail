@@ -906,6 +906,34 @@ body:has(.setup-card) {
     border-radius: 4px;
 }
 
+/* App-Switch chip in the sidebar brand block — jumps between bulk and trans panels */
+.app-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--fg2);
+    border-radius: var(--radius);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    transition: all var(--transition);
+    margin-top: 6px;
+}
+.app-switch:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent-border, transparent);
+    text-decoration: none;
+}
+.app-switch span:last-child { opacity: 0.6; }
+.app-switch:hover span:last-child { opacity: 1; }
+
 /* Theme toggle button */
 .theme-toggle {
     background: var(--bg3);

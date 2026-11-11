@@ -37,6 +37,15 @@
             {% else %}
             <small>Transactional Panel</small>
             {% endif %}
+            {# App-Switch: wenn der Host auf trans*. endet, biete bulk*. als Pendant an.
+               Der Server kennt seine eigene Domain aus dem Request-Host — keine
+               extra Config nötig, solange die Subdomain-Konvention "trans/bulk" ist. #}
+            {% set host = request.url.hostname or '' %}
+            {% if host.startswith('trans') and 'bulk' not in host %}
+            <a class="app-switch mt-sm" href="//{{ host.replace('trans', 'bulk', 1) }}{{ request.url.path }}" rel="noopener" title="Zum Bulk-Panel wechseln">
+                <span>Bulk Mailer</span><span>&rarr;</span>
+            </a>
+            {% endif %}
         </div>
 
         <div class="sidebar-section">Kampagne</div>

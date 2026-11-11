@@ -161,12 +161,6 @@
             </div>
         </div>
         <div class="card">
-            <h3>Cloudinary</h3>
-            <label>Cloud-Name</label><input name="cloudinary_cloud_name" value="{{ cfg.cloudinary_cloud_name or '' }}">
-            <label>API-Key</label><input name="cloudinary_api_key" value="{{ cfg.cloudinary_api_key or '' }}">
-            <label>API-Secret</label><input name="cloudinary_api_secret" type="password" value="{{ cfg.cloudinary_api_secret or '' }}">
-        </div>
-        <div class="card">
             <h3>Spam-Checker</h3>
             <label>Backend</label>
             <select name="spam_checker">
@@ -182,34 +176,6 @@
             <h3>Blacklist</h3>
             <label>MXToolbox API-Key</label>
             <input name="mxtoolbox_api_key" value="{{ cfg.mxtoolbox_api_key or '' }}" placeholder="Für Pre-Flight-IP-Prüfung">
-        </div>
-        <div class="card">
-            <h3>Auto-Freshness-Reset</h3>
-            <div class="form-help mb-sm">
-                Während langer Kampagnen periodisch den Versand pausieren und den HTML-Template-Pool
-                und/oder Logo-Varianten neu generieren. Jeder Reset dauert 5-15 Sekunden. 0 = aus.
-            </div>
-            <label>Reset alle N Mails (0 = deaktiviert)</label>
-            <input name="freshness_every_n_mails" type="number" min="0" max="100000" value="{{ cfg.freshness_every_n_mails or 0 }}" placeholder="z.B. 500">
-            <label class="flex items-center gap-sm mt-sm" style="cursor:pointer">
-                <input type="checkbox" name="freshness_reset_html" {{ 'checked' if cfg.freshness_reset_html }}>
-                <span>HTML-Templates neu generieren (zufällige Layouts)</span>
-            </label>
-            <label>Wie viele HTMLs pro Reset</label>
-            <input name="freshness_html_count" type="number" min="1" max="5000" value="{{ cfg.freshness_html_count or 25 }}">
-            <label class="flex items-center gap-sm mt-sm" style="cursor:pointer">
-                <input type="checkbox" name="freshness_reset_logos" {{ 'checked' if cfg.freshness_reset_logos }}>
-                <span>Logo-Varianten neu generieren (löschen und aus Quell-Logos neu ableiten)</span>
-            </label>
-            <label>Wie viele Varianten pro Reset</label>
-            <input name="freshness_logo_count" type="number" min="1" max="5000" value="{{ cfg.freshness_logo_count or 25 }}">
-            <div class="form-help mt-xs">
-                Logo-Regeneration läuft nur für Bild-Modi <code>cid</code> und <code>url</code>.
-                <code>text</code>-Modus liest nie Varianten, daher wird der Reset übersprungen.
-                <code>cloudinary</code>-Modus liest CDN-URLs aus der Logo-Gruppe und würde
-                ein erneutes Hochladen zu Cloudinary erfordern, was hier nicht gemacht wird — der Reset
-                wird ebenfalls übersprungen.
-            </div>
         </div>
         <div class="card">
             <h3>Gradueller Versand (Warm-up-Rampe)</h3>

@@ -70,6 +70,33 @@ body {
     font-weight: 400;
 }
 
+/* App-Switch chip — hops between bulk and trans panels based on hostname */
+.app-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--fg2);
+    border-radius: var(--radius);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    transition: all var(--transition);
+}
+.app-switch:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+    text-decoration: none;
+}
+.app-switch span:last-child { opacity: 0.6; }
+.app-switch:hover span:last-child { opacity: 1; }
+
 .sidebar-section {
     padding: 8px 12px 4px;
     font-size: 10px;

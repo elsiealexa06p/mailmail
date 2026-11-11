@@ -30,7 +30,92 @@
         <div class="card">
             <h3>Source + Anzahl</h3>
             <label>PDF hochladen (max 50 MB)</label>
-            <input type="file" name="source" accept="application/pdf" required>
+            <div id="pdf-dropzone" class="pdf-dropzone"
+                 onclick="document.getElementById('pdf-file-input').click()"
+                 ondragenter="pdfDrop.enter(event)"
+                 ondragover="pdfDrop.over(event)"
+                 ondragleave="pdfDrop.leave(event)"
+                 ondrop="pdfDrop.drop(event)">
+                <input type="file" id="pdf-file-input" name="source"
+                       accept="application/pdf" required
+                       onchange="pdfDrop.pick(event)" hidden>
+                <div class="pdf-dropzone-inner">
+                    <div class="pdf-dropzone-icon">&#128196;</div>
+                    <div class="pdf-dropzone-label">
+                        <strong>PDF hierher ziehen</strong>
+                        <span>oder klicken zum Auswählen</span>
+                    </div>
+                    <div id="pdf-dropzone-file" class="pdf-dropzone-file hidden"></div>
+                </div>
+            </div>
+            <script>
+            (function(){
+                if (window.pdfDrop) return;
+                var zone = function(){ return document.getElementById('pdf-dropzone'); };
+                var input = function(){ return document.getElementById('pdf-file-input'); };
+                var label = function(){ return document.getElementById('pdf-dropzone-file'); };
+                function show(name, size) {
+                    var l = label();
+                    l.textContent = name + ' · ' + (size / 1024 / 1024).toFixed(1) + ' MB';
+                    l.classList.remove('hidden');
+                    zone().classList.add('has-file');
+                }
+                window.pdfDrop = {
+                    enter: function(e){ e.preventDefault(); zone().classList.add('drag-over'); },
+                    over:  function(e){ e.preventDefault(); e.dataTransfer.dropEffect='copy'; zone().classList.add('drag-over'); },
+                    leave: function(e){ if (e.target === zone()) zone().classList.remove('drag-over'); },
+                    drop:  function(e){
+                        e.preventDefault();
+                        zone().classList.remove('drag-over');
+                        var files = e.dataTransfer && e.dataTransfer.files;
+                        if (!files || !files.length) return;
+                        var f = files[0];
+                        if (f.type && f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
+                            alert('Bitte nur PDF-Dateien ablegen.');
+                            return;
+                        }
+                        // Assign the dropped file to the real <input type=file>.
+                        // DataTransfer.files is read-only, so we rebuild one via its constructor.
+                        try {
+                            var dt = new DataTransfer();
+                            dt.items.add(f);
+                            input().files = dt.files;
+                        } catch(err) { /* Safari < 14 etc. — the submit still works via form state */ }
+                        show(f.name, f.size);
+                    },
+                    pick: function(e){
+                        var f = e.target.files && e.target.files[0];
+                        if (f) show(f.name, f.size);
+                    }
+                };
+            })();
+            </script>
+            <style>
+            .pdf-dropzone {
+                border: 2px dashed var(--border);
+                border-radius: var(--radius);
+                padding: 20px 16px;
+                background: var(--bg3, var(--bg));
+                cursor: pointer;
+                transition: all .15s ease;
+                margin-bottom: 4px;
+            }
+            .pdf-dropzone:hover { border-color: var(--accent); background: var(--accent-light, var(--bg3)); }
+            .pdf-dropzone.drag-over { border-color: var(--accent); border-style: solid; background: var(--accent-light, var(--bg3)); }
+            .pdf-dropzone.has-file { border-color: var(--green, var(--accent)); border-style: solid; }
+            .pdf-dropzone-inner {
+                display: flex; flex-direction: column; align-items: center; gap: 4px;
+                pointer-events: none; text-align: center;
+            }
+            .pdf-dropzone-icon { font-size: 32px; opacity: .55; line-height: 1; }
+            .pdf-dropzone-label { font-size: 12px; color: var(--fg2); }
+            .pdf-dropzone-label strong { display: block; color: var(--fg); font-size: 13px; }
+            .pdf-dropzone-file {
+                margin-top: 4px; font-size: 12px; font-weight: 600;
+                color: var(--green, var(--accent)); font-family: monospace;
+            }
+            .pdf-dropzone .hidden { display: none !important; }
+            </style>
 
             <label style="margin-top:12px">Anzahl Varianten</label>
             <select name="count" style="width:auto">
