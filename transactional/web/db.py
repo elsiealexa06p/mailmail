@@ -348,6 +348,11 @@ class TransDB:
             # mal Hinweis raus, mal Footer2 leer, mal FristText1<->2 swap.
             # Alles per random.random() pro Send — kein Muster.
             ("trans_campaigns", "htmlgen_extra_randomize", "0"),
+            # Opt-in TEST-mode: permutes the four middle TR rows
+            # (satz / hinweis / frist / link) per send so the vertical
+            # structural signature isn't fixed across every mail of a
+            # campaign. Only has an effect when live_html_gen is on too.
+            ("trans_campaigns", "htmlgen_shuffle_blocks", "0"),
             # Optionale Farb-Overrides für den Live-Gen. Leer = random
             # aus htmlgen/config.yaml Pool. Gesetzt = alle Mails der
             # Kampagne nutzen diese Brand-Farbe konsistent.

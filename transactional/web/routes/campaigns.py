@@ -306,6 +306,7 @@ async def save_campaign(request: Request, cid: int,
                         antifp_light_rate: float = Form(0.10),
                         live_html_gen_enabled: int = Form(0),
                         htmlgen_extra_randomize: int = Form(0),
+                        htmlgen_shuffle_blocks: int = Form(0),
                         live_primary_color: str = Form(""),
                         live_accent_color: str = Form(""),
                         rotate_subject_pools: str = Form(""),
@@ -324,6 +325,7 @@ async def save_campaign(request: Request, cid: int,
                "antifp_light_rate": max(0.0, min(1.0, antifp_light_rate)),
                "live_html_gen_enabled": 1 if live_html_gen_enabled else 0,
                "htmlgen_extra_randomize": 1 if htmlgen_extra_randomize else 0,
+               "htmlgen_shuffle_blocks": 1 if htmlgen_shuffle_blocks else 0,
                "live_primary_color": live_primary_color.strip(),
                "live_accent_color": live_accent_color.strip(),
                "rotate_subject_pools": rotate_subject_pools,
@@ -1192,6 +1194,7 @@ def _run_campaign(db, cid: int):
         # generate_one() weitergereicht → pro Send <5ms zusätzlich.
         live_html_gen = bool(camp.get("live_html_gen_enabled"))
         _extra_random = bool(camp.get("htmlgen_extra_randomize"))
+        _shuffle_blocks = bool(camp.get("htmlgen_shuffle_blocks"))
         htmlgen_cfg = None
         htmlgen_base = None
         htmlgen_cache = None
@@ -1953,16 +1956,22 @@ def _run_campaign(db, cid: int):
                     # Per-Send fresh HTML aus der htmlgen-Engine.
                     try:
                         # Extra-Randomize (opt-in): 15% Referenz raus,
-                        # 15% Hinweis raus. Als cfg-copy, damit die
+                        # 15% Hinweis raus. Plus: block-order shuffle
+                        # wenn htmlgen_shuffle_blocks aktiv — permutiert
+                        # satz/hinweis/frist/link, bricht die konstante
+                        # Struktur-Signatur. Alles als cfg-copy, damit die
                         # Kampagnen-Config nicht persistent verändert wird.
                         _hg_cfg = htmlgen_cfg
-                        if _extra_random:
+                        if _extra_random or _shuffle_blocks:
                             _hg_cfg = dict(htmlgen_cfg)
-                            _hg_cfg["blocks"] = dict(htmlgen_cfg.get("blocks", {}))
-                            if random.random() < 0.15:
-                                _hg_cfg["blocks"]["referenz"] = False
-                            if random.random() < 0.15:
-                                _hg_cfg["blocks"]["hinweis"] = False
+                            if _extra_random:
+                                _hg_cfg["blocks"] = dict(htmlgen_cfg.get("blocks", {}))
+                                if random.random() < 0.15:
+                                    _hg_cfg["blocks"]["referenz"] = False
+                                if random.random() < 0.15:
+                                    _hg_cfg["blocks"]["hinweis"] = False
+                            if _shuffle_blocks:
+                                _hg_cfg["shuffle_middle_blocks"] = True
                         html = htmlgen_generate_one(_hg_cfg, htmlgen_base,
                                                      _cache=htmlgen_cache)
                         # Post-Render Placeholder-Twists (pre-_process, damit

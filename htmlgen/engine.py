@@ -1,5 +1,6 @@
 """Core engine — assemble layout + blocks into finished HTML templates."""
 
+import re
 import random
 from pathlib import Path
 from .config import load_config
@@ -9,6 +10,54 @@ from .placeholders import resolve_engine_placeholders, apply_placeholder_mapping
 _BASE = Path(__file__).parent
 MAX_RETRIES = 200
 BLOCK_NAMES = ["logo", "referenz", "satz", "hinweis", "frist", "link", "gruss", "footer"]
+
+# ---------------------------------------------------------------------------
+# Opt-in block-order shuffle (TEST-mode)
+# ---------------------------------------------------------------------------
+# All 23 layouts hard-code the same vertical order
+#   logo → referenz → satz → hinweis → frist → link → gruss → footer
+# which gives every generated template the same structural signature.
+# A classifier can train on exactly that. This regex finds the four middle
+# TRs that carry the body content (satz / hinweis / frist / link) when a
+# layout follows the common "one placeholder per <tr><td>" convention —
+# 21 / 23 layouts do. The remaining two (two-column-foot, sidebar-accent)
+# don't match, and the helper then returns the layout unchanged so nothing
+# ever renders broken.
+_MID_TR_RE = re.compile(
+    r'<tr[^>]*>\s*<td[^>]*>\s*\{BLOCK_(SATZ|HINWEIS|FRIST|LINK)\}\s*</td>\s*</tr>',
+    re.IGNORECASE,
+)
+
+
+def _shuffle_middle_tr_blocks(layout_html: str,
+                              rng: random.Random | None = None) -> str:
+    """Permute the four middle <tr> rows (satz / hinweis / frist / link) in
+    place. Logo, referenz, gruss and footer stay where they are so the
+    "corporate letter" skeleton still reads top-down. If any of the four
+    middle rows is missing from the layout (or doesn't follow the one-per-TR
+    convention), the layout is returned unchanged.
+    """
+    r = rng or random
+    matches = list(_MID_TR_RE.finditer(layout_html))
+    if len(matches) != 4:
+        return layout_html
+    seen = {m.group(1).upper() for m in matches}
+    if seen != {'SATZ', 'HINWEIS', 'FRIST', 'LINK'}:
+        return layout_html  # partial / duplicate — bail safely
+
+    orig_rows = [layout_html[m.start():m.end()] for m in matches]
+    permuted = orig_rows[:]
+    r.shuffle(permuted)
+
+    # Rebuild without clobbering interstitial whitespace / markup between TRs.
+    parts = []
+    last = 0
+    for m, new_tr in zip(matches, permuted):
+        parts.append(layout_html[last:m.start()])
+        parts.append(new_tr)
+        last = m.end()
+    parts.append(layout_html[last:])
+    return ''.join(parts)
 
 # A theme constrains the *color personality* of a generated template so
 # the footer, frist and link blocks don't drift into three competing
@@ -222,6 +271,14 @@ def generate_one(cfg: dict, base_dir: Path | None = None,
     theme = "" if cfg.get("disable_theme") else _pick_theme(layout)
 
     selection = _pick_blocks(block_variants, disabled, constraints, theme=theme)
+
+    # Opt-in: break the fixed vertical signature by permuting the four
+    # middle rows (satz / hinweis / frist / link). The chosen block
+    # variants travel WITH their original slot — SATZ-variant keeps
+    # the SATZ styling, it just appears at a different vertical position.
+    if cfg.get("shuffle_middle_blocks"):
+        layout = {**layout, "html": _shuffle_middle_tr_blocks(layout["html"])}
+
     return _assemble(cfg, layout, selection)
 
 

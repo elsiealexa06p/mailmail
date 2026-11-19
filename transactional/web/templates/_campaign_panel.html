@@ -285,6 +285,25 @@
                         Sinn die Raten irgendwann fest zu verankern.
                     </div>
 
+                    <label class="flex items-center gap-sm mt-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
+                        <input type="checkbox" name="htmlgen_shuffle_blocks" value="1"
+                               {{ 'checked' if c.get('htmlgen_shuffle_blocks') }}>
+                        <span><strong>Block-Reihenfolge würfeln</strong>
+                        <span class="badge badge-paused" style="margin-left:4px">Test</span>
+                        — satz/hinweis/frist/link pro Send vertauschen (nur mit Live-Gen aktiv)</span>
+                    </label>
+                    <div class="form-help mb-sm text-xs" style="margin-left:26px">
+                        Alle 23 Layouts haben dieselbe Vertikal-Reihenfolge
+                        (logo &rarr; referenz &rarr; satz &rarr; hinweis &rarr; frist &rarr; link &rarr; gruss &rarr; footer).
+                        Diese fixe Struktur ist ein Klassifikator-Fingerprint. Dieser Schalter permutiert
+                        pro Send die vier mittleren Zeilen (satz, hinweis, frist, link) im Layout,
+                        ohne Logo/Referenz/Gruß/Footer anzufassen. Greift nur auf Layouts die jedem
+                        mittleren Block seine eigene <code>&lt;tr&gt;</code> geben (21 von 23) —
+                        die restlichen 2 bleiben unverändert.<br>
+                        <strong>Test-Modus:</strong> klein anfangen und in Preview + Inbox-Test
+                        prüfen ob die neuen Reihenfolgen gut aussehen bevor volle Kampagne.
+                    </div>
+
                     <label class="flex items-center gap-sm" style="cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0">
                         <input type="checkbox" name="assembly_mode_enabled" value="1"
                                {{ 'checked' if c.get('assembly_mode_enabled') }}>
