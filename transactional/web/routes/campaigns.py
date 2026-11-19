@@ -692,7 +692,8 @@ async def test_send(request: Request, cid: int):
 
             if afp:
                 html = afp.transform(html)
-            plain = re.sub(r"<[^>]+>", "", html).strip()
+            from mailer.content_engine import ContentEngine
+            plain = ContentEngine.html_to_plaintext(html)
             cur_subject = _process_vars(f"[TEST] {subject_cfg}", recipient, sticky_cache)
             cur_from = _process_vars(from_name_cfg, recipient, sticky_cache)
 
@@ -1021,7 +1022,8 @@ async def spam_check_campaign(request: Request, cid: int):
     html = html_bodies[0]
     html = html.replace("{email}", "test@example.com").replace("{email_user}", "test")
     html = html.replace("{domain}", "example.com").replace("{Logo}", "").replace("{RedirectLink}", "https://example.com")
-    plain = re.sub(r"<[^>]+>", "", html).strip()
+    from mailer.content_engine import ContentEngine
+    plain = ContentEngine.html_to_plaintext(html)
     from_email = cfg.get("from_email", "") or "test@example.com"
 
     try:
@@ -2078,8 +2080,8 @@ def _run_campaign(db, cid: int):
 
                 if afp:
                     html = afp.transform(html)
-                plain = re.sub(r"<br\s*/?>", "\n", html)
-                plain = re.sub(r"<[^>]+>", "", plain).strip()
+                from mailer.content_engine import ContentEngine
+                plain = ContentEngine.html_to_plaintext(html)
 
                 raw_msg = MIMEBuilder.build_email(
                     from_name=cur_from_name, from_email=cur_from_email,

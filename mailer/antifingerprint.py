@@ -3,14 +3,20 @@ import random
 import string
 
 
-_STYLE_ATTR_RE = re.compile(r'(style\s*=\s*")([^"]*?)(")', re.IGNORECASE)
+# Matches style="..." AND style='...'. Group layout:
+#   1 = "style=" prefix (whitespace-tolerant)
+#   2 = the quote char used (" or ')
+#   3 = the CSS content between the quotes
+# The backreference \2 closes with the same quote, so mixed delimiters
+# (style="a'b") still match cleanly.
+_STYLE_ATTR_RE = re.compile(r"""(style\s*=\s*)(["'])(.*?)\2""", re.IGNORECASE)
 _PX_PROP_RE = re.compile(
-    r"((?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*)([^;\"]+)",
+    r"((?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*)([^;\"']+)",
     re.IGNORECASE,
 )
 _PX_NUM_RE = re.compile(r"(\d+)(px)", re.IGNORECASE)
 _TAG_WITH_STYLE_RE = re.compile(
-    r"(<(?:div|p|table|td|span|a|hr)\b)([^>]*?)(style\s*=\s*\"[^\"]*?\")([^>]*?>)",
+    r"""(<(?:div|p|table|td|span|a|hr)\b)([^>]*?)(style\s*=\s*(?:"[^"]*?"|'[^']*?'))([^>]*?>)""",
     re.IGNORECASE,
 )
 _ELIGIBLE_TAG_RE = re.compile(
@@ -220,21 +226,21 @@ def _vary_pixels(html: str, jitter_prob: float = 0.30, jitter_delta: int = 2) ->
         return match.group(1) + _PX_NUM_RE.sub(_vary_num, match.group(2))
 
     def _vary_style(match: re.Match) -> str:
-        prefix, css, suffix = match.group(1), match.group(2), match.group(3)
-        return prefix + _PX_PROP_RE.sub(_vary_prop, css) + suffix
+        prefix, quote, css = match.group(1), match.group(2), match.group(3)
+        return f"{prefix}{quote}{_PX_PROP_RE.sub(_vary_prop, css)}{quote}"
 
     return _STYLE_ATTR_RE.sub(_vary_style, html)
 
 
 def _shuffle_css_properties(html: str, rate: float = 1.0) -> str:
     def _shuffle_one(match: re.Match) -> str:
-        prefix, css, suffix = match.group(1), match.group(2), match.group(3)
+        prefix, quote, css = match.group(1), match.group(2), match.group(3)
         if random.random() > rate:
             return match.group(0)
         parts = [p.strip() for p in css.split(";") if p.strip()]
         if len(parts) > 1:
             random.shuffle(parts)
-        return prefix + ";".join(parts) + ";" + suffix
+        return f"{prefix}{quote}{';'.join(parts)};{quote}"
 
     return _STYLE_ATTR_RE.sub(_shuffle_one, html)
 
